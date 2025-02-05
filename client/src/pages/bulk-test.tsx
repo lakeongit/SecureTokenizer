@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { apiRequest } from "@/lib/utils";
 
 const SAMPLE_DATA = Array(10).fill(null).map((_, i) => ({
@@ -40,20 +41,22 @@ export default function BulkTestPage() {
   };
 
   return (
-    <div className="container mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-4">Bulk Testing</h1>
-      <Button onClick={runBulkTest} disabled={isLoading}>
-        Run Bulk Test ({SAMPLE_DATA.length} items)
-      </Button>
-      
-      {results.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4">Results</h2>
-          <pre className="bg-muted p-4 rounded-lg overflow-auto max-h-[500px]">
-            {JSON.stringify(results, null, 2)}
-          </pre>
-        </div>
-      )}
-    </div>
+    <TooltipProvider>
+      <div className="container mx-auto p-8">
+        <h1 className="text-2xl font-bold mb-4">Bulk Testing</h1>
+        <Button onClick={runBulkTest} disabled={isLoading}>
+          Run Bulk Test ({SAMPLE_DATA.length} items)
+        </Button>
+        
+        {results.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-xl font-bold mb-4">Results</h2>
+            <pre className="bg-muted p-4 rounded-lg overflow-auto max-h-[500px]">
+              {JSON.stringify(results, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }
