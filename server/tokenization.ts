@@ -157,7 +157,7 @@ export class TokenizationService {
     }
 
     if (tokenRecord.expires < new Date()) {
-      throw new Error('Token expired');
+      throw new Error(`Token has expired on ${tokenRecord.expires.toLocaleString()}. Please generate a new token or extend the expiry if needed.`);
     }
 
     // Decode the token data
