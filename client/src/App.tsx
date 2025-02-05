@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "./hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
+import { Layout } from "@/components/Layout";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
@@ -11,11 +12,35 @@ import AuditLogsPage from "@/pages/audit-logs";
 import CloudScannerPage from "@/pages/cloud-scanner";
 
 function Router() {
+  const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
+    <ProtectedRoute>
+      <Layout>{children}</Layout>
+    </ProtectedRoute>
+  );
+
   return (
     <Switch>
-      <ProtectedRoute path="/" component={HomePage} />
-      <ProtectedRoute path="/audit-logs" component={AuditLogsPage} />
-      <ProtectedRoute path="/cloud-scanner" component={CloudScannerPage} />
+      <WouterRoute path="/">
+        {() => (
+          <ProtectedLayout>
+            <HomePage />
+          </ProtectedLayout>
+        )}
+      </WouterRoute>
+      <WouterRoute path="/audit-logs">
+        {() => (
+          <ProtectedLayout>
+            <AuditLogsPage />
+          </ProtectedLayout>
+        )}
+      </WouterRoute>
+      <WouterRoute path="/cloud-scanner">
+        {() => (
+          <ProtectedLayout>
+            <CloudScannerPage />
+          </ProtectedLayout>
+        )}
+      </WouterRoute>
       <WouterRoute path="/auth" component={AuthPage} />
       <WouterRoute component={NotFound} />
     </Switch>
