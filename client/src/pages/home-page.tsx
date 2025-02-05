@@ -8,8 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Shield, Key, Clock, Search, Plus, Filter } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  Shield,
+  Key,
+  Clock,
+  Search,
+  Plus,
+  Filter,
+  Database,
+  FileText,
+  Settings,
+  AlertTriangle,
+  Loader2
+} from "lucide-react";
 import { Link } from "wouter";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { fieldCategories, getAllFields, validateField } from "@/lib/field-definitions";
@@ -609,132 +620,176 @@ export default function HomePage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background">
-        <header className="border-b">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold">Secure Tokenization System</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">
-                Logged in as {user?.username}
-              </span>
-              <Link href="/audit-logs">
-                <Button variant="outline" className="gap-2">
-                  <Clock className="h-4 w-4" />
-                  Audit Logs
+        {/* Modern Header Design */}
+        <header className="border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-2 bg-primary/5 p-2 rounded-lg">
+                  <Shield className="h-6 w-6 text-primary" />
+                  <h1 className="text-xl font-semibold">TokenVault</h1>
+                </div>
+              </div>
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/10 rounded-full text-sm text-secondary-foreground">
+                  <Database className="h-4 w-4" />
+                  <span>{user?.username}</span>
+                </div>
+                <Link href="/audit-logs">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Clock className="h-4 w-4" />
+                    Audit Logs
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => logoutMutation.mutate()}
+                  disabled={logoutMutation.isPending}
+                >
+                  {logoutMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Logout"
+                  )}
                 </Button>
-              </Link>
-              <Button
-                variant="outline"
-                onClick={() => logoutMutation.mutate()}
-                disabled={logoutMutation.isPending}
-              >
-                {logoutMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Logout"
-                )}
-              </Button>
+              </div>
             </div>
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 py-8 space-y-8">
           <Tutorial />
-          <Tabs defaultValue="tokenize" className="space-y-8">
-            <TabsList>
-              <TabsTrigger value="tokenize">Tokenize Data</TabsTrigger>
-              <TabsTrigger value="detokenize">Detokenize</TabsTrigger>
-              <TabsTrigger value="bulk">Bulk Operations</TabsTrigger>
-              <TabsTrigger value="manage">Token Management</TabsTrigger>
-              <TabsTrigger value="expiring">Expiring Tokens</TabsTrigger>
-            </TabsList>
 
+          {/* Enhanced Tab Navigation */}
+          <Tabs defaultValue="tokenize" className="space-y-8">
+            <div className="bg-white rounded-lg p-1 border shadow-sm">
+              <TabsList className="grid grid-cols-5 gap-2">
+                <TabsTrigger value="tokenize" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  <Key className="h-4 w-4 mr-2" />
+                  Tokenize
+                </TabsTrigger>
+                <TabsTrigger value="detokenize">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Detokenize
+                </TabsTrigger>
+                <TabsTrigger value="bulk">
+                  <Database className="h-4 w-4 mr-2" />
+                  Bulk Operations
+                </TabsTrigger>
+                <TabsTrigger value="manage">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Management
+                </TabsTrigger>
+                <TabsTrigger value="expiring">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Expiring Tokens
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Improved Token Management Tab */}
             <TabsContent value="manage">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5" />
+              <Card className="border-none shadow-lg">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                    <Settings className="h-6 w-6 text-primary" />
                     Token Management
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base">
                     View information, extend validity, or revoke existing tokens
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="management-token">Token</Label>
-                      <Input
-                        id="management-token"
-                        value={managementToken}
-                        onChange={(e) => setManagementToken(e.target.value)}
-                        placeholder="Enter token to manage..."
-                      />
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        onClick={handleViewInfo}
-                        disabled={viewTokenInfoMutation.isPending || !managementToken}
-                      >
-                        {viewTokenInfoMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : null}
-                        View Info
-                      </Button>
-                      <Button
-                        onClick={handleExtend24h}
-                        disabled={extendTokenMutation.isPending || !managementToken}
-                      >
-                        {extendTokenMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : null}
-                        Extend 24h
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={handleRevoke}
-                        disabled={revokeTokenMutation.isPending || !managementToken}
-                      >
-                        {revokeTokenMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : null}
-                        Revoke
-                      </Button>
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <Label htmlFor="management-token" className="text-sm font-medium">
+                          Token
+                        </Label>
+                        <Input
+                          id="management-token"
+                          value={managementToken}
+                          onChange={(e) => setManagementToken(e.target.value)}
+                          placeholder="Enter token to manage..."
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div className="flex gap-3">
+                        <Button
+                          onClick={handleViewInfo}
+                          disabled={viewTokenInfoMutation.isPending || !managementToken}
+                          className="flex-1"
+                          variant="outline"
+                        >
+                          {viewTokenInfoMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <FileText className="h-4 w-4 mr-2" />
+                          )}
+                          View Info
+                        </Button>
+                        <Button
+                          onClick={handleExtend24h}
+                          disabled={extendTokenMutation.isPending || !managementToken}
+                          className="flex-1"
+                          variant="secondary"
+                        >
+                          {extendTokenMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Clock className="h-4 w-4 mr-2" />
+                          )}
+                          Extend 24h
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={handleRevoke}
+                          disabled={revokeTokenMutation.isPending || !managementToken}
+                          className="flex-1"
+                        >
+                          {revokeTokenMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4 mr-2" />
+                          )}
+                          Revoke
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
+            {/* Enhanced Tokenize Tab */}
             <TabsContent value="tokenize">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5" />
+              <Card className="border-none shadow-lg">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                    <Key className="h-6 w-6 text-primary" />
                     Tokenize Sensitive Data
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base">
                     Select fields to tokenize from predefined categories or add custom fields
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex gap-4 mb-6">
-                    <div className="flex-1">
-                      <Label>Search Fields</Label>
+                <CardContent className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Search Fields</Label>
                       <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           placeholder="Search for fields..."
-                          className="pl-8"
+                          className="pl-9"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                         />
                       </div>
                     </div>
-                    <div className="flex-1">
-                      <Label>Add Custom Field</Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Add Custom Field</Label>
                       <div className="flex gap-2">
                         <Input
                           placeholder="Enter custom field name..."
@@ -745,6 +800,7 @@ export default function HomePage() {
                           variant="outline"
                           onClick={addCustomField}
                           disabled={!customFieldName.trim()}
+                          className="shrink-0"
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -867,34 +923,43 @@ export default function HomePage() {
             </TabsContent>
 
             <TabsContent value="detokenize">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5" />
+              <Card className="border-none shadow-lg">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                    <FileText className="h-6 w-6 text-primary" />
                     Detokenize Data
                   </CardTitle>
+                  <CardDescription className="text-base">
+                    Retrieve sensitive data using a token
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label>Token</Label>
-                    <div className="flex gap-4">
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Label htmlFor="detokenize-query" className="text-sm font-medium">
+                        Token
+                      </Label>
                       <Input
+                        id="detokenize-query"
                         value={detokenizeQuery}
                         onChange={(e) => setDetokenizeQuery(e.target.value)}
                         placeholder="Enter token to retrieve data..."
+                        className="mt-1.5"
                       />
-                      <Button
-                        onClick={() => detokenizeMutation.mutate(detokenizeQuery)}
-                        disabled={detokenizeMutation.isPending || !detokenizeQuery}
-                      >
-                        {detokenizeMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : null}
-                        Retrieve Data
-                      </Button>
                     </div>
+                    <Button
+                      onClick={() => detokenizeMutation.mutate(detokenizeQuery)}
+                      disabled={detokenizeMutation.isPending || !detokenizeQuery}
+                      className="w-full"
+                    >
+                      {detokenizeMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <FileText className="h-4 w-4 mr-2" />
+                      )}
+                      Retrieve Data
+                    </Button>
                   </div>
-
                   {detokenizeMutation.data && (
                     <Card>
                       <CardHeader>
@@ -902,9 +967,14 @@ export default function HomePage() {
                       </CardHeader>
                       <CardContent>
                         <ScrollArea className="h-[200px]">
-                          <pre className="text-sm">
-                            {JSON.stringify(detokenizeMutation.data.data, null, 2)}
-                          </pre>
+                          <div className="space-y-2">
+                            {Object.entries(detokenizeMutation.data).map(([key, value]) => (
+                              <div key={key} className="flex justify-between items-center">
+                                <span className="font-medium">{key}:</span>
+                                <span>{value as string}</span>
+                              </div>
+                            ))}
+                          </div>
                         </ScrollArea>
                       </CardContent>
                     </Card>
@@ -914,288 +984,202 @@ export default function HomePage() {
             </TabsContent>
 
             <TabsContent value="bulk">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5" />
-                    Bulk Tokenization
+              <Card className="border-none shadow-lg">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                    <Database className="h-6 w-6 text-primary" />
+                    Bulk Operations
                   </CardTitle>
-                  <CardDescription>
-                    Upload a CSV file or manually add items for bulk tokenization
+                  <CardDescription className="text-base">
+                    Process multiple records at once using CSV upload or manual entry
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
-                    <Label>Upload CSV File</Label>
-                    <div className="flex flex-col gap-2">
-                      <Input
-                        type="file"
-                        accept=".csv"
-                        onChange={handleCsvUpload}
-                        className="cursor-pointer"
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        CSV should have headers matching the field names you want to tokenize
-                      </p>
-                      {csvError && (
-                        <p className="text-sm text-destructive">{csvError}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">
-                        Or add items manually
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    {Object.entries(sensitiveData).map(([key, value]) => (
-                      <div key={key} className="flex gap-4">
-                        <div className="flex-1 space-y-2">
-                          <Label>Field Name</Label>
-                          <Input
-                            value={key}
-                            onChange={(e) => {
-                              const { [key]: value, ...rest } = sensitiveData;
-                              setSensitiveData({
-                                ...rest,
-                                [e.target.value]: value,
-                              });
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1 space-y-2">
-                          <Label>Value</Label>
-                          <Input
-                            value={value}
-                            onChange={(e) => {
-                              setSensitiveData(prev => ({
-                                ...prev,
-                                [key]: e.target.value,
-                              }));
-                            }}
-                          />
-                        </div>
-                        <Button
-                          variant="ghost"
-                          className="self-end"
-                          onClick={() => {
-                            const { [key]: _, ...rest } = sensitiveData;
-                            setSensitiveData(rest);
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-4">
-                    <Button onClick={() => addToBulk()} disabled={Object.keys(sensitiveData).length === 0}>
-                      Add to Batch
-                    </Button>
-                    <Button onClick={() => addField()}>Add Field</Button>
-                  </div>
-
-                  {bulkData.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm">Batch Items ({bulkData.length})</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="h-[200px]">
-                          <div className="space-y-4">
-                            {bulkData.map((item, index) => (
-                              <div key={index} className="flex items-center justify-between gap-4 p-2 border rounded">
-                                <span className="text-sm truncate">
-                                  {Object.entries(item)[0]?.[0]}: {Object.entries(item)[0]?.[1]}
-                                  {Object.keys(item).length > 1 ? ` (+${Object.keys(item).length - 1} more)` : ''}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeFromBulk(index)}
-                                >
-                                  Remove
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {bulkData.length > 0 && (
-                    <div className="space-y-4">
-                      <div className="w-48 space-y-2">
-                        <Label>Expiry (hours)</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">CSV Upload</Label>
                         <Input
-                          type="number"
-                          value={expiryHours}
-                          onChange={(e) => setExpiryHours(e.target.value)}
+                          type="file"
+                          accept=".csv"
+                          onChange={handleCsvUpload}
+                          className="cursor-pointer"
                         />
+                        {csvError && (
+                          <p className="text-sm text-destructive">{csvError}</p>
+                        )}
                       </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Token Expiry</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            value={expiryHours}
+                            onChange={(e) => setExpiryHours(e.target.value)}
+                          />
+                          <span className="text-sm text-muted-foreground self-center">hours</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {bulkData.length > 0 && (
+                      <Card className="mt-4">
+                        <CardHeader>
+                          <CardTitle className="text-lg">Bulk Data Preview</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ScrollArea className="h-[300px]">
+                            <div className="space-y-4">
+                              {bulkData.map((item, index) => (
+                                <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
+                                  <div className="flex-1">
+                                    {Object.entries(item).map(([key, value]) => (
+                                      <div key={key} className="text-sm">
+                                        <span className="font-medium">{key}: </span>
+                                        {value}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeFromBulk(index)}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <div className="flex justify-end gap-4">
                       <Button
+                        variant="default"
                         onClick={processBulk}
-                        disabled={bulkTokenizeMutation.isPending}
+                        disabled={bulkTokenizeMutation.isPending || bulkData.length === 0}
                       >
                         {bulkTokenizeMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : null}
-                        Process Batch ({bulkData.length} items)
+                        ) : (
+                          <Database className="h-4 w-4 mr-2" />
+                        )}
+                        Process Bulk Data
                       </Button>
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
+
             <TabsContent value="expiring">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Tokens Expiring Soon
+              <Card className="border-none shadow-lg">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                    <AlertTriangle className="h-6 w-6 text-primary" />
+                    Expiring Tokens
                   </CardTitle>
-                  <CardDescription>
-                    View and manage tokens that will expire in the next {filterDays} days
+                  <CardDescription className="text-base">
+                    Manage tokens that are approaching expiration
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex gap-4">
-                      <div className="flex-1">
-                        <Label>Search Tokens</Label>
-                        <div className="relative">
-                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Search by token..."
-                            className="pl-8"
-                            value={tokenSearch}
-                            onChange={(e) => setTokenSearch(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <Label>Filter Options</Label>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full">
-                              <Filter className="h-4 w-4 mr-2" />
-                              Filter
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem onClick={() => setFilterDays(7)}>
-                              Next 7 days
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setFilterDays(30)}>
-                              Next 30 days
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setFilterDays(90)}>
-                              Next 90 days
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Filter Period</Label>
+                      <Select value={filterDays.toString()} onValueChange={(value) => setFilterDays(parseInt(value))}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Select days" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="7">Next 7 days</SelectItem>
+                          <SelectItem value="30">Next 30 days</SelectItem>
+                          <SelectItem value="90">Next 90 days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 flex items-end">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="show-expired"
+                          checked={showExpired}
+                          onCheckedChange={(checked) => setShowExpired(checked as boolean)}
+                        />
+                        <Label htmlFor="show-expired" className="text-sm font-medium">
+                          Show expired tokens
+                        </Label>
                       </div>
                     </div>
+                  </div>
 
-                    {selectedTokens.length > 0 && (
-                      <div className="flex items-center justify-between bg-muted p-4 rounded-lg">
-                        <span>{selectedTokens.length} tokens selected</span>
-                        <div className="space-x-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => bulkExtendMutation.mutate({
-                              tokens: selectedTokens,
-                              hours: 24
-                            })}
-                            disabled={bulkExtendMutation.isPending}
-                          >
-                            {bulkExtendMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : null}
-                            Extend Selected
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() => {
-                              if (window.confirm('Are you sure you want to revoke the selected tokens? This action cannot be undone.')) {
-                                bulkRevokeMutation.mutate(selectedTokens);
-                              }
-                            }}
-                            disabled={bulkRevokeMutation.isPending}
-                          >
-                            {bulkRevokeMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : null}
-                            Revoke Selected
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {expiringTokensQuery.isLoading ? (
-                      <div className="flex justify-center p-4">
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      </div>
-                    ) : expiringTokensQuery.isError ? (
-                      <div className="text-destructive text-center p-4">
-                        Failed to load expiring tokens
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {expiringTokensQuery.data
-                          ?.filter(token =>
-                            token.token.toLowerCase().includes(tokenSearch.toLowerCase())
-                          )
-                          .map((token) => (
-                            <Card key={token.token} className="p-4">
-                              <div className="flex items-start gap-4">
+                  {expiringTokensQuery.data && expiringTokensQuery.data.length > 0 ? (
+                    <ScrollArea className="h-[400px] border rounded-lg">
+                      <div className="p-4 space-y-4">
+                        {expiringTokensQuery.data.map((token) => (
+                          <Card key={token.token} className="border">
+                            <CardContent className="p-4 flex items-center justify-between">
+                              <div className="space-y-1">
+                                <div className="font-medium">{token.token}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  Created: {format(new Date(token.created), 'PPP')}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  Expires: {format(new Date(token.expires), 'PPP')}
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
                                 <Checkbox
                                   checked={selectedTokens.includes(token.token)}
                                   onCheckedChange={(checked) => {
-                                    setSelectedTokens(prev =>
-                                      checked
-                                        ? [...prev, token.token]
-                                        : prev.filter(t => t !== token.token)
-                                    );
+                                    if (checked) {
+                                      setSelectedTokens([...selectedTokens, token.token]);
+                                    } else {
+                                      setSelectedTokens(selectedTokens.filter(t => t !== token.token));
+                                    }
                                   }}
                                 />
-                                <div className="flex-1">
-                                  <div className="flex justify-between items-start">
-                                    <div className="space-y-1">
-                                      <p className="font-medium">Token: {token.token}</p>
-                                      <p className="text-sm text-muted-foreground">
-                                        Created: {format(new Date(token.created), 'PPp')}
-                                      </p>
-                                      <p className="text-sm text-muted-foreground">
-                                        Expires: {format(new Date(token.expires), 'PPp')}
-                                      </p>
-                                    </div>
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => {
-                                        setManagementToken(token.token);
-                                        handleExtend24h();
-                                      }}
-                                    >
-                                      Extend 24h
-                                    </Button>
-                                  </div>
-                                </div>
                               </div>
-                            </Card>
-                          ))}
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                    )}
-                  </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No expiring tokens found
+                    </div>
+                  )}
+
+                  {selectedTokens.length > 0 && (
+                    <div className="flex justify-end gap-4">
+                      <Button
+                        variant="secondary"
+                        onClick={() => bulkExtendMutation.mutate({ tokens: selectedTokens, hours: 24 })}
+                        disabled={bulkExtendMutation.isPending}
+                      >
+                        {bulkExtendMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Clock className="h-4 w-4 mr-2" />
+                        )}
+                        Extend Selected (24h)
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => bulkRevokeMutation.mutate(selectedTokens)}
+                        disabled={bulkRevokeMutation.isPending}
+                      >
+                        {bulkRevokeMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 mr-2" />
+                        )}
+                        Revoke Selected
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
