@@ -14,8 +14,11 @@ export class TokenizationService {
   private keyRotationInterval: NodeJS.Timer;
 
   private constructor() {
-    // In production, this should be loaded from a secure key management service
-    this.currentMasterKey = crypto.randomBytes(MASTER_KEY_SIZE);
+    const masterKeyHex = process.env.MASTER_KEY;
+    if (!masterKeyHex) {
+      throw new Error('MASTER_KEY environment variable is required');
+    }
+    this.currentMasterKey = Buffer.from(masterKeyHex, 'hex');
     this.previousMasterKey = null;
     this.keyRotationInterval = setInterval(() => {
       this.rotateMasterKey();
