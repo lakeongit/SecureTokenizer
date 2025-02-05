@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Cloud, Settings, AlertCircle } from "lucide-react";
 import {
@@ -41,9 +40,9 @@ export default function CloudScannerPage() {
   const [editingConfig, setEditingConfig] = useState(false);
   const [configForm, setConfigForm] = useState<Partial<ScannerConfig>>({});
 
-  const { data: status, isLoading: isStatusLoading } = useQuery({
+  const { data: status, isLoading: isStatusLoading } = useQuery<ScannerStatus>({
     queryKey: ['/api/scanner/status'],
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 5000,
   });
 
   const startScannerMutation = useMutation({
@@ -120,6 +119,23 @@ export default function CloudScannerPage() {
     );
   }
 
+  const scannerStatus = status || {
+    isRunning: false,
+    lastScanTime: undefined,
+    totalScans: 0,
+    totalFindings: 0,
+    config: {
+      projectId: '',
+      scanInterval: '',
+      bucketPatterns: [],
+      customDataPatterns: [],
+      encryptionOptions: {
+        algorithm: '',
+        keyRotationInterval: 0
+      }
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-8">
@@ -131,8 +147,8 @@ export default function CloudScannerPage() {
             </p>
           </div>
           <Button
-            variant={status?.isRunning ? "destructive" : "default"}
-            onClick={() => status?.isRunning 
+            variant={scannerStatus.isRunning ? "destructive" : "default"}
+            onClick={() => scannerStatus.isRunning 
               ? stopScannerMutation.mutate()
               : startScannerMutation.mutate()
             }
@@ -141,11 +157,11 @@ export default function CloudScannerPage() {
             {(startScannerMutation.isPending || stopScannerMutation.isPending) && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            {status?.isRunning ? "Stop Scanner" : "Start Scanner"}
+            {scannerStatus.isRunning ? "Stop Scanner" : "Start Scanner"}
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -155,11 +171,11 @@ export default function CloudScannerPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {status?.isRunning ? "Active" : "Inactive"}
+                {scannerStatus.isRunning ? "Active" : "Inactive"}
               </div>
               <p className="text-xs text-muted-foreground">
-                Last scan: {status?.lastScanTime 
-                  ? new Date(status.lastScanTime).toLocaleString()
+                Last scan: {scannerStatus.lastScanTime 
+                  ? new Date(scannerStatus.lastScanTime).toLocaleString()
                   : "Never"
                 }
               </p>
@@ -175,7 +191,7 @@ export default function CloudScannerPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {status?.totalScans || 0}
+                {scannerStatus.totalScans}
               </div>
               <p className="text-xs text-muted-foreground">
                 Completed scan operations
@@ -192,7 +208,7 @@ export default function CloudScannerPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {status?.totalFindings || 0}
+                {scannerStatus.totalFindings}
               </div>
               <p className="text-xs text-muted-foreground">
                 Sensitive data instances found
@@ -216,7 +232,7 @@ export default function CloudScannerPage() {
                   if (editingConfig) {
                     setEditingConfig(false);
                   } else {
-                    setConfigForm(status?.config || {});
+                    setConfigForm(scannerStatus.config || {});
                     setEditingConfig(true);
                   }
                 }}
@@ -282,19 +298,19 @@ export default function CloudScannerPage() {
                 <TableBody>
                   <TableRow>
                     <TableCell>Project ID</TableCell>
-                    <TableCell>{status?.config.projectId}</TableCell>
+                    <TableCell>{scannerStatus.config.projectId}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Scan Interval</TableCell>
-                    <TableCell>{status?.config.scanInterval}</TableCell>
+                    <TableCell>{scannerStatus.config.scanInterval}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Bucket Patterns</TableCell>
-                    <TableCell>{status?.config.bucketPatterns.join(', ')}</TableCell>
+                    <TableCell>{scannerStatus.config.bucketPatterns.join(', ')}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Encryption Algorithm</TableCell>
-                    <TableCell>{status?.config.encryptionOptions.algorithm}</TableCell>
+                    <TableCell>{scannerStatus.config.encryptionOptions.algorithm}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
