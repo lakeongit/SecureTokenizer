@@ -19,6 +19,28 @@ export function registerRoutes(app: Express): Server {
   setupAuth(app);
   app.use("/api", apiLimiter);
 
+  // Get token info endpoint
+  app.get("/api/tokens/:token", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const { token } = req.params;
+      const tokenData = await storage.getToken(token);
+
+      if (!tokenData) {
+        return res.status(404).json({ message: "Token not found" });
+      }
+
+      res.json({
+        created: tokenData.created.toISOString(),
+        expires: tokenData.expires.toISOString(),
+        userId: tokenData.userId
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // Bulk tokenization endpoint with duplicate detection
   app.post("/api/bulk-tokenize", async (req, res, next) => {
     try {
