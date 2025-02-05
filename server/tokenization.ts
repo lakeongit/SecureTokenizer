@@ -221,5 +221,6 @@ export class TokenizationService {
     }
   }
 }
+}
 
 export const tokenizationService = TokenizationService.getInstance();
