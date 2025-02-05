@@ -15,6 +15,38 @@ export function registerRoutes(app: Express): Server {
 
   app.use("/api", apiLimiter);
 
+  // Bulk tokenization endpoint
+  app.post("/api/bulk-tokenize", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const items = req.body;
+      if (!Array.isArray(items)) {
+        return res.status(400).json({ message: "Expected array of items" });
+      }
+
+      const results = await Promise.all(
+        items.map(async (item) => {
+          try {
+            const { data, expiryHours } = tokenizationSchema.parse(item);
+            const token = await tokenizationService.tokenize(
+              data,
+              req.user!.id,
+              expiryHours
+            );
+            return { success: true, token };
+          } catch (err) {
+            return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+          }
+        })
+      );
+
+      res.json({ results });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // Tokenization endpoints
   app.post("/api/tokenize", async (req, res, next) => {
     try {
