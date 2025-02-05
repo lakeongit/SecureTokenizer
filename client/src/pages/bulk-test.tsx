@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { apiRequest } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
 const SAMPLE_DATA = Array(10).fill(null).map((_, i) => ({
   data: {
@@ -23,6 +22,10 @@ export default function BulkTestPage() {
     setIsLoading(true);
     try {
       const res = await apiRequest("POST", "/api/bulk-tokenize", SAMPLE_DATA);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Bulk tokenization failed');
+      }
       const data = await res.json();
       setResults(data.results);
       toast({
@@ -47,7 +50,7 @@ export default function BulkTestPage() {
         <Button onClick={runBulkTest} disabled={isLoading}>
           Run Bulk Test ({SAMPLE_DATA.length} items)
         </Button>
-        
+
         {results.length > 0 && (
           <div className="mt-8">
             <h2 className="text-xl font-bold mb-4">Results</h2>

@@ -128,6 +128,10 @@ export default function HomePage() {
   const detokenizeMutation = useMutation({
     mutationFn: async (token: string) => {
       const res = await apiRequest("POST", "/api/detokenize", { token });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to detokenize');
+      }
       return res.json();
     },
     onSuccess: (data) => {
@@ -135,6 +139,7 @@ export default function HomePage() {
         title: "Data Retrieved",
         description: "Token successfully detokenized",
       });
+      setDetokenizeQuery(""); // Clear the input after successful detokenization
     },
     onError: (error: Error) => {
       toast({
@@ -142,6 +147,7 @@ export default function HomePage() {
         description: error.message,
         variant: "destructive",
       });
+      setDetokenizeQuery(""); // Clear the input on error
     },
   });
 
