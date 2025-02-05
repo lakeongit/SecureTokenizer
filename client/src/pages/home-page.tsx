@@ -16,7 +16,27 @@ export default function HomePage() {
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
   const [detokenizeQuery, setDetokenizeQuery] = useState("");
-  const [sensitiveData, setSensitiveData] = useState<Record<string, string>>({});
+  const [sensitiveData, setSensitiveData] = useState<Record<string, string>>({
+    // Credit Card Data
+    card_number: "4111-1111-1111-1111",
+    cvv: "123",
+    expiry: "12/25",
+    
+    // Personal Information
+    ssn: "123-45-6789",
+    drivers_license: "D1234567",
+    passport: "P1234567",
+    
+    // Financial Data
+    bank_account: "12345678",
+    routing_number: "987654321",
+    iban: "DE89370400440532013000",
+    
+    // Healthcare Data
+    patient_id: "PT123456",
+    diagnosis_code: "ICD10-F41.1",
+    medication_id: "MED789"
+  });
   const [expiryHours, setExpiryHours] = useState<string>("24");
 
   // Add field to sensitive data
