@@ -3,44 +3,59 @@ import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Shield, Key, Clock, AlertCircle, Upload } from "lucide-react";
+import { Loader2, Shield, Key, Clock, Search, Plus } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { fieldCategories, getAllFields } from "@/lib/field-definitions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
   const [detokenizeQuery, setDetokenizeQuery] = useState("");
-  const [sensitiveData, setSensitiveData] = useState<Record<string, string>>({
-    card_number: "4111-1111-1111-1111",
-    cvv: "123",
-    expiry: "12/25",
-    ssn: "123-45-6789",
-    drivers_license: "D1234567",
-    passport: "P1234567",
-    bank_account: "12345678",
-    routing_number: "987654321",
-    iban: "DE89370400440532013000",
-    patient_id: "PT123456",
-    diagnosis_code: "ICD10-F41.1",
-    medication_id: "MED789"
-  });
+  const [sensitiveData, setSensitiveData] = useState<Record<string, string>>({});
   const [expiryHours, setExpiryHours] = useState<string>("24");
   const [bulkData, setBulkData] = useState<Array<Record<string, string>>>([]);
   const [selectedToken, setSelectedToken] = useState("");
   const [extensionHours, setExtensionHours] = useState("24");
-  const [csvError, setCsvError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [customFieldName, setCustomFieldName] = useState("");
 
-  const addField = () => {
-    setSensitiveData(prev => ({
-      ...prev,
-      [`field${Object.keys(prev).length + 1}`]: "",
-    }));
+  const handleFieldSelection = (fieldId: string) => {
+    const field = getAllFields().find(f => f.id === fieldId);
+    if (field) {
+      setSensitiveData(prev => ({
+        ...prev,
+        [field.id]: ""
+      }));
+    }
+  };
+
+  const addCustomField = () => {
+    if (customFieldName.trim()) {
+      setSensitiveData(prev => ({
+        ...prev,
+        [customFieldName.trim().toLowerCase().replace(/\s+/g, '_')]: ""
+      }));
+      setCustomFieldName("");
+    }
   };
 
   const removeField = (key: string) => {
@@ -225,6 +240,14 @@ export default function HomePage() {
     reader.readAsText(file);
   };
 
+  const filteredCategories = fieldCategories.map(category => ({
+    ...category,
+    fields: category.fields.filter(field => 
+      field.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      field.description.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  })).filter(category => category.fields.length > 0);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
@@ -274,60 +297,141 @@ export default function HomePage() {
                   <Key className="h-5 w-5" />
                   Tokenize Sensitive Data
                 </CardTitle>
+                <CardDescription>
+                  Select fields to tokenize from predefined categories or add custom fields
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  {Object.entries(sensitiveData).map(([key, value]) => (
-                    <div key={key} className="flex gap-4">
-                      <div className="flex-1 space-y-2">
-                        <Label>Field Name</Label>
-                        <Input
-                          value={key}
-                          onChange={(e) => {
-                            const { [key]: value, ...rest } = sensitiveData;
-                            setSensitiveData({
-                              ...rest,
-                              [e.target.value]: value,
-                            });
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <Label>Value</Label>
-                        <Input
-                          value={value}
-                          onChange={(e) => {
-                            setSensitiveData(prev => ({
-                              ...prev,
-                              [key]: e.target.value,
-                            }));
-                          }}
-                        />
-                      </div>
-                      <Button
-                        variant="ghost"
-                        className="self-end"
-                        onClick={() => removeField(key)}
+                <div className="flex gap-4 mb-6">
+                  <div className="flex-1">
+                    <Label>Search Fields</Label>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search for fields..."
+                        className="pl-8"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <Label>Add Custom Field</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter custom field name..."
+                        value={customFieldName}
+                        onChange={(e) => setCustomFieldName(e.target.value)}
+                      />
+                      <Button 
+                        variant="outline"
+                        onClick={addCustomField}
+                        disabled={!customFieldName.trim()}
                       >
-                        Remove
+                        <Plus className="h-4 w-4" />
                       </Button>
                     </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="w-48 space-y-2">
-                    <Label>Expiry (hours)</Label>
-                    <Input
-                      type="number"
-                      value={expiryHours}
-                      onChange={(e) => setExpiryHours(e.target.value)}
-                    />
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <Button onClick={addField}>Add Field</Button>
+                <Accordion type="single" collapsible className="w-full">
+                  {filteredCategories.map((category) => (
+                    <AccordionItem value={category.name} key={category.name}>
+                      <AccordionTrigger className="text-lg">
+                        {category.name}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                          {category.fields.map((field) => (
+                            <Card key={field.id} className="border">
+                              <CardHeader className="p-4">
+                                <CardTitle className="text-sm flex justify-between">
+                                  {field.name}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleFieldSelection(field.id)}
+                                    disabled={field.id in sensitiveData}
+                                  >
+                                    {field.id in sensitiveData ? 'Added' : 'Add'}
+                                  </Button>
+                                </CardTitle>
+                                <CardDescription className="text-xs">
+                                  {field.description}
+                                </CardDescription>
+                              </CardHeader>
+                            </Card>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+
+                {Object.keys(sensitiveData).length > 0 && (
+                  <Card className="mt-6">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Selected Fields</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {Object.entries(sensitiveData).map(([key, value]) => (
+                        <div key={key} className="flex gap-4">
+                          <div className="flex-1 space-y-2">
+                            <Label>{getAllFields().find(f => f.id === key)?.name || key}</Label>
+                            <Input
+                              value={value}
+                              onChange={(e) => {
+                                setSensitiveData(prev => ({
+                                  ...prev,
+                                  [key]: e.target.value,
+                                }));
+                              }}
+                              placeholder={getAllFields().find(f => f.id === key)?.placeholder || "Enter value..."}
+                            />
+                          </div>
+                          <Button
+                            variant="ghost"
+                            className="self-end"
+                            onClick={() => removeField(key)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Data Retention Policy</CardTitle>
+                    <CardDescription>
+                      Configure how long the tokenized data should be retained
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="w-full md:w-72 space-y-2">
+                      <Label>Token Expiry</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              value={expiryHours}
+                              onChange={(e) => setExpiryHours(e.target.value)}
+                            />
+                            <span className="text-sm text-muted-foreground self-center">hours</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Tokens will be automatically invalidated after this duration</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="flex justify-end gap-4">
                   <Button
                     variant="default"
                     onClick={() => tokenizeMutation.mutate({
