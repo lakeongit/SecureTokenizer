@@ -428,15 +428,15 @@ export default function HomePage() {
 
     const validation = validateField(key, newValue);
     if (!validation.isValid && validation.message) {
+      // Fix the type issue by ensuring we're only setting string values
       setValidationErrors(prev => ({
         ...prev,
-        [key]: validation.message,
+        [key]: validation.message || '',  // Ensure we always set a string
       }));
     } else {
       setValidationErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[key];
-        return newErrors;
+        const { [key]: _, ...rest } = prev;  // Remove the key while maintaining type safety
+        return rest;
       });
     }
   };

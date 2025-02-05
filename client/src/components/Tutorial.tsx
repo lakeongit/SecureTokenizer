@@ -20,32 +20,38 @@ interface TutorialStep {
 const tutorialSteps: TutorialStep[] = [
   {
     title: "Welcome to the Tokenization Platform",
-    description: "This tutorial will guide you through the main features of our platform. Click 'Next' to begin.",
+    description: "This tutorial will guide you through the main features of our secure tokenization platform. We'll show you how to protect sensitive data using our vaultless tokenization system.",
   },
   {
-    title: "Create Your First Token",
-    description: "Click the 'Create Token' button to start tokenizing your sensitive data.",
-    element: "#create-token-btn",
+    title: "Select Data Fields",
+    description: "Start by selecting the type of sensitive data you want to tokenize. You can choose from predefined categories like Personal Information, Financial Data, or Healthcare Records.",
+    element: ".TokenizeTab",
     position: "bottom",
   },
   {
-    title: "Bulk Processing",
-    description: "For large datasets, use our CSV upload feature to process multiple records at once.",
-    element: "#bulk-upload-btn",
+    title: "Configure Token Expiry",
+    description: "Set how long your tokens should remain valid. This helps maintain security by automatically invalidating tokens after a specified period.",
+    element: ".ExpirySection",
     position: "right",
   },
   {
-    title: "Monitor Your Tokens",
-    description: "View and manage all your tokens in the token list. You can search, filter, and examine token details.",
-    element: "#token-list",
+    title: "Bulk Operations",
+    description: "Need to tokenize multiple records? Use our CSV upload feature or manually add multiple items for batch processing.",
+    element: ".BulkTab",
     position: "top",
   },
   {
-    title: "Audit Logging",
-    description: "Track all tokenization activities in the audit log section.",
-    element: "#audit-log",
+    title: "Token Management",
+    description: "View and manage your tokens, including extending their validity period or revoking them if needed.",
+    element: ".ManageTab",
     position: "left",
   },
+  {
+    title: "Audit Logging",
+    description: "Track all tokenization activities in the audit logs section. This helps maintain compliance and security oversight.",
+    element: ".AuditTab",
+    position: "right",
+  }
 ];
 
 export function Tutorial() {
@@ -71,7 +77,7 @@ export function Tutorial() {
       if (element) {
         setHighlightedElement(element);
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
+
         // Add highlight effect
         element.style.position = 'relative';
         element.style.zIndex = '1000';
@@ -132,10 +138,10 @@ export function Tutorial() {
               {currentTutorialStep.description}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="mt-4">
             <Progress value={progress} className="mb-4" />
-            
+
             <div className="flex justify-between mt-4">
               <Button
                 variant="outline"
@@ -144,7 +150,7 @@ export function Tutorial() {
               >
                 Back
               </Button>
-              
+
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={handleSkip}>
                   Skip Tutorial
