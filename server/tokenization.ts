@@ -36,13 +36,14 @@ export class TokenizationService {
 
   // Derive a unique key for each token using HKDF
   private deriveKey(salt: Buffer, masterKey: Buffer): Buffer {
-    return crypto.hkdfSync(
+    const hkdfBuffer = crypto.hkdfSync(
       'sha256',
       masterKey,
       salt,
-      'TokenizationKey',
+      Buffer.from('TokenizationKey'),
       32
     );
+    return Buffer.from(hkdfBuffer);
   }
 
   // Token management methods
@@ -152,54 +153,58 @@ export class TokenizationService {
   }
 
   async detokenize(token: string, userId: number): Promise<Record<string, string>> {
-    // Retrieve token from database
-    const tokenRecord = await storage.getToken(token);
+    try {
+      // Retrieve token from database
+      const tokenRecord = await storage.getToken(token);
 
-    if (!tokenRecord) {
-      throw new Error('Token not found');
-    }
-
-    if (tokenRecord.expires < new Date()) {
-      throw new Error(`Token has expired on ${tokenRecord.expires.toLocaleString()}. Please generate a new token or extend the expiry if needed.`);
-    }
-
-    // Decode the token data
-    const tokenData = Buffer.from(tokenRecord.sensitiveData, 'base64');
-
-    // Extract components
-    const version = tokenData[0];
-    const salt = tokenData.subarray(1, 1 + SALT_SIZE);
-    const iv = tokenData.subarray(1 + SALT_SIZE, 1 + SALT_SIZE + 16);
-    const authTag = tokenData.subarray(1 + SALT_SIZE + 16, 1 + SALT_SIZE + 32);
-    const encrypted = tokenData.subarray(1 + SALT_SIZE + 32);
-
-    if (version !== KEY_VERSION) {
-      throw new Error('Token was created with an old key version');
-    }
-
-    // Try current master key first
-    let decrypted: string | null = null;
-    const keys = [this.currentMasterKey, this.previousMasterKey].filter(Boolean);
-
-    for (const key of keys) {
-      try {
-        const decryptionKey = this.deriveKey(salt, key);
-        const decipher = crypto.createDecipheriv('aes-256-gcm', decryptionKey, iv);
-        decipher.setAuthTag(authTag);
-        
-        decrypted = Buffer.concat([
-          decipher.update(encrypted),
-          decipher.final()
-        ]).toString('utf8');
-        break;
-      } catch (e) {
-        continue;
+      if (!tokenRecord) {
+        throw new Error('Token not found');
       }
-    }
 
-    if (!decrypted) {
-      throw new Error('Failed to decrypt token data: Unable to decrypt with any available keys');
-    }
+      if (tokenRecord.expires < new Date()) {
+        throw new Error(`Token has expired on ${tokenRecord.expires.toLocaleString()}. Please generate a new token or extend the expiry if needed.`);
+      }
+
+      // Decode the token data
+      const tokenData = Buffer.from(tokenRecord.sensitiveData, 'base64');
+
+      // Extract components
+      const version = tokenData[0];
+      const salt = tokenData.subarray(1, 1 + SALT_SIZE);
+      const iv = tokenData.subarray(1 + SALT_SIZE, 1 + SALT_SIZE + 16);
+      const authTag = tokenData.subarray(1 + SALT_SIZE + 16, 1 + SALT_SIZE + 32);
+      const encrypted = tokenData.subarray(1 + SALT_SIZE + 32);
+
+      if (version !== KEY_VERSION) {
+        throw new Error('Token was created with an old key version');
+      }
+
+      // Try current master key first
+      let decrypted: string | null = null;
+      const keys = [this.currentMasterKey];
+      if (this.previousMasterKey) {
+        keys.push(this.previousMasterKey);
+      }
+
+      for (const key of keys) {
+        try {
+          const decryptionKey = this.deriveKey(salt, key);
+          const decipher = crypto.createDecipheriv('aes-256-gcm', decryptionKey, iv);
+          decipher.setAuthTag(authTag);
+
+          decrypted = Buffer.concat([
+            decipher.update(encrypted),
+            decipher.final()
+          ]).toString('utf8');
+          break;
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (!decrypted) {
+        throw new Error('Failed to decrypt token data: Unable to decrypt with any available keys');
+      }
 
       // Create audit log
       await storage.createAuditLog({
@@ -213,7 +218,7 @@ export class TokenizationService {
       });
 
       return JSON.parse(decrypted);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(`Failed to decrypt token data: ${error.message}. This could be due to data corruption or an invalid token format.`);
       }
