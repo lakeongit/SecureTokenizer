@@ -36,13 +36,11 @@ export class TokenizationService {
     const token = crypto.randomBytes(TOKEN_SIZE).toString('hex');
     const encryptedData = this.encrypt(JSON.stringify(data));
 
-    const expires = expiryHours 
-      ? new Date(Date.now() + expiryHours * 60 * 60 * 1000)
-      : null; 
+    const expires = new Date(Date.now() + (expiryHours || 24) * 60 * 60 * 1000);
 
     await storage.createToken({
       token,
-      sensitiveData: encryptedData, 
+      sensitiveData: encryptedData,
       userId,
       created: new Date(),
       expires,
@@ -51,7 +49,7 @@ export class TokenizationService {
     await storage.createAuditLog({
       userId,
       action: 'tokenize',
-      details: { token },
+      details: JSON.stringify({ tokenId: token }),
       timestamp: new Date(),
     });
 
@@ -72,11 +70,11 @@ export class TokenizationService {
     await storage.createAuditLog({
       userId,
       action: 'detokenize',
-      details: { token },
+      details: JSON.stringify({ tokenId: token }),
       timestamp: new Date(),
     });
 
-    const decrypted = this.decrypt(tokenRecord.sensitiveData as string);
+    const decrypted = this.decrypt(tokenRecord.sensitiveData);
     return JSON.parse(decrypted);
   }
 
