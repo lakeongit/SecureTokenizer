@@ -48,7 +48,38 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Tokenization endpoints
+  // Token management endpoints
+  app.post("/api/tokens/:token/extend", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const { token } = req.params;
+      const { hours } = req.body;
+
+      if (!hours || typeof hours !== "number" || hours <= 0) {
+        return res.status(400).json({ message: "Invalid hours provided" });
+      }
+
+      await tokenizationService.extendTokenExpiry(token, req.user!.id, hours);
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post("/api/tokens/:token/revoke", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const { token } = req.params;
+      await tokenizationService.revokeToken(token, req.user!.id);
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Existing tokenization endpoints
   app.post("/api/tokenize", async (req, res, next) => {
     try {
       if (!req.isAuthenticated()) return res.sendStatus(401);

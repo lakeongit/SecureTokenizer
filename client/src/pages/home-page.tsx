@@ -39,6 +39,9 @@ export default function HomePage() {
     medication_id: "MED789"
   });
   const [expiryHours, setExpiryHours] = useState<string>("24");
+  const [bulkData, setBulkData] = useState<Array<Record<string, string>>>([]);
+  const [selectedToken, setSelectedToken] = useState("");
+  const [extensionHours, setExtensionHours] = useState("24");
 
   // Add field to sensitive data
   const addField = () => {
@@ -98,6 +101,93 @@ export default function HomePage() {
     },
   });
 
+  // Bulk tokenize mutation
+  const bulkTokenizeMutation = useMutation({
+    mutationFn: async (data: Array<{ data: Record<string, string>, expiryHours: number }>) => {
+      const res = await apiRequest("POST", "/api/bulk-tokenize", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Bulk Tokenization Complete",
+        description: `Successfully processed ${data.results.filter(r => r.success).length} items`,
+      });
+      setBulkData([]);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Bulk Tokenization Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Extend token mutation
+  const extendTokenMutation = useMutation({
+    mutationFn: async ({ token, hours }: { token: string, hours: number }) => {
+      await apiRequest("POST", `/api/tokens/${token}/extend`, { hours });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Token Extended",
+        description: "Token expiration has been extended successfully",
+      });
+      setSelectedToken("");
+      setExtensionHours("24");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Extension Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Revoke token mutation
+  const revokeTokenMutation = useMutation({
+    mutationFn: async (token: string) => {
+      await apiRequest("POST", `/api/tokens/${token}/revoke`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Token Revoked",
+        description: "Token has been revoked successfully",
+      });
+      setSelectedToken("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Revocation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Add to bulk data
+  const addToBulk = () => {
+    if (Object.keys(sensitiveData).length > 0) {
+      setBulkData(prev => [...prev, { ...sensitiveData }]);
+      setSensitiveData({});
+    }
+  };
+
+  // Process bulk data
+  const processBulk = () => {
+    const items = bulkData.map(data => ({
+      data,
+      expiryHours: parseInt(expiryHours),
+    }));
+    bulkTokenizeMutation.mutate(items);
+  };
+
+  // Remove from bulk data
+  const removeFromBulk = (index: number) => {
+    setBulkData(prev => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
@@ -136,6 +226,8 @@ export default function HomePage() {
           <TabsList>
             <TabsTrigger value="tokenize">Tokenize Data</TabsTrigger>
             <TabsTrigger value="detokenize">Detokenize</TabsTrigger>
+            <TabsTrigger value="bulk">Bulk Operations</TabsTrigger>
+            <TabsTrigger value="manage">Token Management</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tokenize">
@@ -259,6 +351,180 @@ export default function HomePage() {
                       </ScrollArea>
                     </CardContent>
                   </Card>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="bulk">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  Bulk Tokenization
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  {Object.entries(sensitiveData).map(([key, value]) => (
+                    <div key={key} className="flex gap-4">
+                      <div className="flex-1 space-y-2">
+                        <Label>Field Name</Label>
+                        <Input
+                          value={key}
+                          onChange={(e) => {
+                            const { [key]: value, ...rest } = sensitiveData;
+                            setSensitiveData({
+                              ...rest,
+                              [e.target.value]: value,
+                            });
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <Label>Value</Label>
+                        <Input
+                          value={value}
+                          onChange={(e) => {
+                            setSensitiveData(prev => ({
+                              ...prev,
+                              [key]: e.target.value,
+                            }));
+                          }}
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        className="self-end"
+                        onClick={() => {
+                          const { [key]: _, ...rest } = sensitiveData;
+                          setSensitiveData(rest);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-4">
+                  <Button onClick={() => addToBulk()} disabled={Object.keys(sensitiveData).length === 0}>
+                    Add to Batch
+                  </Button>
+                  <Button onClick={() => addField()}>Add Field</Button>
+                </div>
+
+                {bulkData.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Batch Items ({bulkData.length})</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[200px]">
+                        <div className="space-y-4">
+                          {bulkData.map((item, index) => (
+                            <div key={index} className="flex items-center justify-between gap-4 p-2 border rounded">
+                              <span className="text-sm truncate">
+                                {Object.entries(item)[0]?.[0]}: {Object.entries(item)[0]?.[1]}
+                                {Object.keys(item).length > 1 ? ` (+${Object.keys(item).length - 1} more)` : ''}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeFromBulk(index)}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {bulkData.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="w-48 space-y-2">
+                      <Label>Expiry (hours)</Label>
+                      <Input
+                        type="number"
+                        value={expiryHours}
+                        onChange={(e) => setExpiryHours(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      onClick={processBulk}
+                      disabled={bulkTokenizeMutation.isPending}
+                    >
+                      {bulkTokenizeMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : null}
+                      Process Batch ({bulkData.length} items)
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="manage">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  Token Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <Label>Token</Label>
+                  <Input
+                    value={selectedToken}
+                    onChange={(e) => setSelectedToken(e.target.value)}
+                    placeholder="Enter token to manage..."
+                  />
+                </div>
+
+                {selectedToken && (
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="w-48 space-y-2">
+                        <Label>Extension (hours)</Label>
+                        <Input
+                          type="number"
+                          value={extensionHours}
+                          onChange={(e) => setExtensionHours(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        className="self-end"
+                        onClick={() => extendTokenMutation.mutate({
+                          token: selectedToken,
+                          hours: parseInt(extensionHours),
+                        })}
+                        disabled={extendTokenMutation.isPending}
+                      >
+                        {extendTokenMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        Extend Expiry
+                      </Button>
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <Button
+                        variant="destructive"
+                        onClick={() => revokeTokenMutation.mutate(selectedToken)}
+                        disabled={revokeTokenMutation.isPending}
+                      >
+                        {revokeTokenMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        Revoke Token
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>

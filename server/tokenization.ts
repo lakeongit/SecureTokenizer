@@ -42,6 +42,51 @@ export class TokenizationService {
     );
   }
 
+  // Token management methods
+  async extendTokenExpiry(token: string, userId: number, hours: number): Promise<void> {
+    const tokenRecord = await storage.getToken(token);
+    if (!tokenRecord) {
+      throw new Error('Token not found');
+    }
+
+    if (tokenRecord.expires < new Date()) {
+      throw new Error('Cannot extend expired token');
+    }
+
+    const newExpiry = new Date(tokenRecord.expires.getTime() + hours * 60 * 60 * 1000);
+    await storage.updateTokenExpiry(token, newExpiry);
+
+    await storage.createAuditLog({
+      userId,
+      action: 'extend_token',
+      details: JSON.stringify({
+        tokenId: token,
+        extendedHours: hours,
+        newExpiry: newExpiry.toISOString()
+      }),
+      timestamp: new Date(),
+    });
+  }
+
+  async revokeToken(token: string, userId: number): Promise<void> {
+    const tokenRecord = await storage.getToken(token);
+    if (!tokenRecord) {
+      throw new Error('Token not found');
+    }
+
+    // Set expiry to current time to immediately invalidate the token
+    await storage.updateTokenExpiry(token, new Date());
+
+    await storage.createAuditLog({
+      userId,
+      action: 'revoke_token',
+      details: JSON.stringify({
+        tokenId: token,
+      }),
+      timestamp: new Date(),
+    });
+  }
+
   async tokenize(data: Record<string, string>, userId: number, expiryHours: number = 24): Promise<string> {
     // Generate a random token identifier
     const token = crypto.randomBytes(TOKEN_SIZE).toString('hex');
