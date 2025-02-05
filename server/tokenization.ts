@@ -201,7 +201,10 @@ export class TokenizationService {
 
       return JSON.parse(decrypted);
     } catch (error) {
-      throw new Error('Failed to decrypt token data');
+      if (error instanceof Error) {
+        throw new Error(`Failed to decrypt token data: ${error.message}. This could be due to data corruption or an invalid token format.`);
+      }
+      throw new Error('Failed to decrypt token data: Unknown error occurred during decryption.');
     }
   }
 }
