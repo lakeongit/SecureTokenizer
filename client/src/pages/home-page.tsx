@@ -41,6 +41,12 @@ interface BulkResult {
   }>;
 }
 
+interface TokenInfo {
+  created: string;
+  expires: string;
+  userId: string;
+}
+
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
@@ -54,6 +60,7 @@ export default function HomePage() {
   const [customFieldName, setCustomFieldName] = useState("");
   const [csvError, setCsvError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [managementToken, setManagementToken] = useState("");
 
   const handleFieldSelection = (fieldId: string) => {
     const field = getAllFields().find(f => f.id === fieldId);
@@ -242,6 +249,37 @@ export default function HomePage() {
     onError: (error: Error) => {
       toast({
         title: "Revocation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const viewTokenInfoMutation = useMutation({
+    mutationFn: async (token: string) => {
+      const res = await apiRequest("GET", `/api/tokens/${token}`);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to get token info');
+      }
+      return res.json() as Promise<TokenInfo>;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Token Information",
+        description: (
+          <div className="space-y-2">
+            <p>Created: {new Date(data.created).toLocaleString()}</p>
+            <p>Expires: {new Date(data.expires).toLocaleString()}</p>
+            <p>Created by: {data.userId}</p>
+          </div>
+        ),
+        duration: 5000,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Get Token Info",
         description: error.message,
         variant: "destructive",
       });
@@ -441,6 +479,42 @@ export default function HomePage() {
     }
   };
 
+  const handleViewInfo = () => {
+    if (!managementToken) {
+      toast({
+        title: "Error",
+        description: "Please enter a token",
+        variant: "destructive",
+      });
+      return;
+    }
+    viewTokenInfoMutation.mutate(managementToken);
+  };
+
+  const handleExtend24h = () => {
+    if (!managementToken) {
+      toast({
+        title: "Error",
+        description: "Please enter a token",
+        variant: "destructive",
+      });
+      return;
+    }
+    extendTokenMutation.mutate({ token: managementToken, hours: 24 });
+  };
+
+  const handleRevoke = () => {
+    if (!managementToken) {
+      toast({
+        title: "Error",
+        description: "Please enter a token",
+        variant: "destructive",
+      });
+      return;
+    }
+    revokeTokenMutation.mutate(managementToken);
+  };
+
 
   return (
     <TooltipProvider>
@@ -485,26 +559,60 @@ export default function HomePage() {
               <TabsTrigger value="bulk">Bulk Operations</TabsTrigger>
               <TabsTrigger value="manage">Token Management</TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="manage" className="space-y-4">
+
+            <TabsContent value="manage">
               <Card>
                 <CardHeader>
-                  <CardTitle>Token Management</CardTitle>
-                  <CardDescription>Manage your existing tokens</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <Key className="h-5 w-5" />
+                    Token Management
+                  </CardTitle>
+                  <CardDescription>
+                    View information, extend validity, or revoke existing tokens
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="token">Token</Label>
-                      <Input id="token" placeholder="Enter token to manage..." />
+                    <div className="space-y-2">
+                      <Label htmlFor="management-token">Token</Label>
+                      <Input
+                        id="management-token"
+                        value={managementToken}
+                        onChange={(e) => setManagementToken(e.target.value)}
+                        placeholder="Enter token to manage..."
+                      />
                     </div>
                     <div className="flex space-x-2">
-                      <Button onClick={() => window.tokenInfo()}>View Info</Button>
-                      <Button onClick={() => window.extendToken(24)}>Extend 24h</Button>
-                      <Button variant="destructive" onClick={() => window.revokeToken()}>Revoke</Button>
+                      <Button
+                        onClick={handleViewInfo}
+                        disabled={viewTokenInfoMutation.isPending || !managementToken}
+                      >
+                        {viewTokenInfoMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        View Info
+                      </Button>
+                      <Button
+                        onClick={handleExtend24h}
+                        disabled={extendTokenMutation.isPending || !managementToken}
+                      >
+                        {extendTokenMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        Extend 24h
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleRevoke}
+                        disabled={revokeTokenMutation.isPending || !managementToken}
+                      >
+                        {revokeTokenMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        Revoke
+                      </Button>
                     </div>
                   </div>
-                  <div className="mt-4" id="tokenStatus"></div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -852,68 +960,6 @@ export default function HomePage() {
                         ) : null}
                         Process Batch ({bulkData.length} items)
                       </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="manage">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5" />
-                    Token Management
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <Label>Token</Label>
-                    <Input
-                      value={selectedToken}
-                      onChange={(e) => setSelectedToken(e.target.value)}
-                      placeholder="Enter token to manage..."
-                    />
-                  </div>
-
-                  {selectedToken && (
-                    <div className="space-y-4">
-                      <div className="flex gap-4">
-                        <div className="w-48 space-y-2">
-                          <Label>Extension (hours)</Label>
-                          <Input
-                            type="number"
-                            value={extensionHours}
-                            onChange={(e) => setExtensionHours(e.target.value)}
-                          />
-                        </div>
-                        <Button
-                          className="self-end"
-                          onClick={() => extendTokenMutation.mutate({
-                            token: selectedToken,
-                            hours: parseInt(extensionHours),
-                          })}
-                          disabled={extendTokenMutation.isPending}
-                        >
-                          {extendTokenMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : null}
-                          Extend Expiry
-                        </Button>
-                      </div>
-
-                      <div className="pt-4 border-t">
-                        <Button
-                          variant="destructive"
-                          onClick={() => revokeTokenMutation.mutate(selectedToken)}
-                          disabled={revokeTokenMutation.isPending}
-                        >
-                          {revokeTokenMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : null}
-                          Revoke Token
-                        </Button>
-                      </div>
                     </div>
                   )}
                 </CardContent>
