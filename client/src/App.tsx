@@ -8,12 +8,14 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
 import AuditLogsPage from "@/pages/audit-logs";
+import CloudScannerPage from "@/pages/cloud-scanner";
 
 function Router() {
   return (
     <Switch>
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedRoute path="/audit-logs" component={AuditLogsPage} />
+      <ProtectedRoute path="/cloud-scanner" component={CloudScannerPage} />
       <WouterRoute path="/auth" component={AuthPage} />
       <WouterRoute component={NotFound} />
     </Switch>

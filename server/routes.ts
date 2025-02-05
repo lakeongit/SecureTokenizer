@@ -5,6 +5,7 @@ import { tokenizationService } from "./tokenization";
 import { tokenizationSchema } from "@shared/schema";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
+import { cloudScanner } from './services/cloud-scanner';
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -271,6 +272,51 @@ export function registerRoutes(app: Express): Server {
           failed: results.filter(r => !r.success).length
         }
       });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Cloud Scanner endpoints
+  app.post("/api/scanner/start", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      await cloudScanner.start();
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post("/api/scanner/stop", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      await cloudScanner.stop();
+      res.sendStatus(200);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/scanner/status", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const status = await cloudScanner.getStatus();
+      res.json(status);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.patch("/api/scanner/config", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      await cloudScanner.updateConfig(req.body);
+      res.sendStatus(200);
     } catch (err) {
       next(err);
     }

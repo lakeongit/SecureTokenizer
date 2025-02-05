@@ -11,6 +11,9 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@google-cloud/dlp": "^5.12.0",
+    "@google-cloud/security-center": "^8.12.0",
+    "@google-cloud/storage": "^7.15.0",
     "@hookform/resolvers": "^3.9.1",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
@@ -47,6 +50,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "connect-pg-simple": "^10.0.0",
+    "cron": "^3.5.0",
     "date-fns": "^3.6.0",
     "drizzle-orm": "^0.39.1",
     "drizzle-zod": "^0.7.0",
