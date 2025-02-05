@@ -866,56 +866,73 @@ export default function HomePage() {
                     Token Management
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <Label>Token</Label>
-                    <Input
-                      value={selectedToken}
-                      onChange={(e) => setSelectedToken(e.target.value)}
-                      placeholder="Enter token to manage..."
-                    />
-                  </div>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Select Action</Label>
+                      <Select onValueChange={setSelectedToken} value={selectedToken}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose action..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="extend">Extend Token</SelectItem>
+                          <SelectItem value="revoke">Revoke Token</SelectItem>
+                          <SelectItem value="info">View Token Info</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  {selectedToken && (
-                    <div className="space-y-4">
-                      <div className="flex gap-4">
-                        <div className="w-48 space-y-2">
-                          <Label>Extension (hours)</Label>
+                    {selectedToken && (
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Token</Label>
                           <Input
-                            type="number"
-                            value={extensionHours}
-                            onChange={(e) => setExtensionHours(e.target.value)}
+                            placeholder="Enter your token..."
+                            id="token"
                           />
                         </div>
-                        <Button
-                          className="self-end"
-                          onClick={() => extendTokenMutation.mutate({
-                            token: selectedToken,
-                            hours: parseInt(extensionHours),
-                          })}
-                          disabled={extendTokenMutation.isPending}
-                        >
-                          {extendTokenMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : null}
-                          Extend Expiry
-                        </Button>
-                      </div>
+                        
+                        {selectedToken === 'extend' && (
+                          <div className="flex gap-4">
+                            <div className="w-32">
+                              <Label>Hours</Label>
+                              <Input
+                                type="number"
+                                value={extensionHours}
+                                onChange={(e) => setExtensionHours(e.target.value)}
+                                min="1"
+                              />
+                            </div>
+                            <Button 
+                              className="self-end"
+                              onClick={() => window.extendToken(parseInt(extensionHours))}
+                            >
+                              Extend
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {selectedToken === 'revoke' && (
+                          <Button 
+                            variant="destructive"
+                            onClick={() => window.revokeToken()}
+                          >
+                            Revoke Token
+                          </Button>
+                        )}
+                        
+                        {selectedToken === 'info' && (
+                          <Button 
+                            onClick={() => window.tokenInfo()}
+                          >
+                            View Info
+                          </Button>
+                        )}
 
-                      <div className="pt-4 border-t">
-                        <Button
-                          variant="destructive"
-                          onClick={() => revokeTokenMutation.mutate(selectedToken)}
-                          disabled={revokeTokenMutation.isPending}
-                        >
-                          {revokeTokenMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : null}
-                          Revoke Token
-                        </Button>
+                        <div id="tokenStatus" className="text-sm mt-4"></div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
