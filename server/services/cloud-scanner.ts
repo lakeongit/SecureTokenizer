@@ -16,6 +16,8 @@ interface ScannerConfig {
   };
 }
 
+const SYSTEM_USER_ID = 999999;
+
 export class CloudScanner {
   private static instance: CloudScanner;
   private storage: Storage;
@@ -50,7 +52,7 @@ export class CloudScanner {
     if (!this.scanJob.running) {
       this.scanJob.start();
       await storage.createAuditLog({
-        userId: 0,
+        userId: SYSTEM_USER_ID,
         action: 'start_cloud_scanner',
         details: JSON.stringify({
           scanInterval: this.config.scanInterval,
@@ -65,7 +67,7 @@ export class CloudScanner {
     if (this.scanJob.running) {
       this.scanJob.stop();
       await storage.createAuditLog({
-        userId: 0,
+        userId: SYSTEM_USER_ID,
         action: 'stop_cloud_scanner',
         details: JSON.stringify({
           scanInterval: this.config.scanInterval,
@@ -78,7 +80,7 @@ export class CloudScanner {
   private async performScan(): Promise<void> {
     try {
       await storage.createAuditLog({
-        userId: 0,
+        userId: SYSTEM_USER_ID,
         action: 'cloud_scan_started',
         details: JSON.stringify({
           timestamp: new Date().toISOString(),
@@ -123,12 +125,12 @@ export class CloudScanner {
               if (finding.quote) {
                 const token = await tokenizationService.tokenize(
                   { value: finding.quote },
-                  0,
+                  SYSTEM_USER_ID,
                   24
                 );
 
                 await storage.createAuditLog({
-                  userId: 0,
+                  userId: SYSTEM_USER_ID,
                   action: 'cloud_scan_tokenize',
                   details: JSON.stringify({
                     bucket: bucket.name,
@@ -164,7 +166,7 @@ export class CloudScanner {
       }
 
       await storage.createAuditLog({
-        userId: 0,
+        userId: SYSTEM_USER_ID,
         action: 'cloud_scan_completed',
         details: JSON.stringify({
           scannedBuckets: matchingBuckets.length,
@@ -174,7 +176,7 @@ export class CloudScanner {
       });
     } catch (error) {
       await storage.createAuditLog({
-        userId: 0,
+        userId: SYSTEM_USER_ID,
         action: 'cloud_scan_error',
         details: JSON.stringify({
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -202,7 +204,7 @@ export class CloudScanner {
     }
 
     await storage.createAuditLog({
-      userId: 0,
+      userId: SYSTEM_USER_ID,
       action: 'update_scanner_config',
       details: JSON.stringify(newConfig),
       timestamp: new Date(),
@@ -216,8 +218,8 @@ export class CloudScanner {
     totalFindings: number;
     config: ScannerConfig;
   }> {
-    const auditLogs = await storage.getAuditLogs(0);
-    const scanLogs = auditLogs.filter(log => 
+    const auditLogs = await storage.getAuditLogs(SYSTEM_USER_ID);
+    const scanLogs = auditLogs.filter(log =>
       ['cloud_scan_started', 'cloud_scan_completed', 'cloud_scan_error'].includes(log.action)
     );
 
