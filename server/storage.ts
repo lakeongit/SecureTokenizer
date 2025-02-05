@@ -1,7 +1,7 @@
 import { users, tokens, auditLogs } from "@shared/schema";
 import { type User, type InsertUser, type Token, type AuditLog } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, lte, gte } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -18,6 +18,7 @@ export interface IStorage {
   updateTokenExpiry(token: string, expires: Date): Promise<Token>;
   createAuditLog(log: Omit<AuditLog, "id">): Promise<AuditLog>;
   getAuditLogs(userId: number): Promise<AuditLog[]>;
+  getExpiringTokens(userId: number, daysThreshold: number): Promise<Token[]>;
   sessionStore: session.Store;
 }
 
@@ -81,6 +82,24 @@ export class DatabaseStorage implements IStorage {
       .from(auditLogs)
       .where(eq(auditLogs.userId, userId))
       .orderBy(desc(auditLogs.timestamp));
+  }
+
+  async getExpiringTokens(userId: number, daysThreshold: number): Promise<Token[]> {
+    const now = new Date();
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() + daysThreshold);
+
+    return await db
+      .select()
+      .from(tokens)
+      .where(
+        and(
+          eq(tokens.userId, userId),
+          gte(tokens.expires, now),
+          lte(tokens.expires, thresholdDate)
+        )
+      )
+      .orderBy(tokens.expires);
   }
 }
 

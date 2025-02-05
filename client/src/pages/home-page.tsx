@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/tooltip";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Tutorial } from "@/components/Tutorial";
+import { Calendar } from "lucide-react";
+import { format } from "date-fns";
 
 // Add TypeScript interfaces for API responses
 interface TokenizationResult {
@@ -45,6 +47,12 @@ interface TokenInfo {
   created: string;
   expires: string;
   userId: string;
+}
+
+interface ExpiringToken {
+  token: string;
+  created: string;
+  expires: string;
 }
 
 export default function HomePage() {
@@ -516,6 +524,17 @@ export default function HomePage() {
   };
 
 
+  const expiringTokensQuery = useQuery({
+    queryKey: ['/api/tokens/expiring/30'],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/tokens/expiring/30");
+      if (!res.ok) {
+        throw new Error("Failed to fetch expiring tokens");
+      }
+      return res.json() as Promise<ExpiringToken[]>;
+    }
+  });
+
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background">
@@ -558,6 +577,7 @@ export default function HomePage() {
               <TabsTrigger value="detokenize">Detokenize</TabsTrigger>
               <TabsTrigger value="bulk">Bulk Operations</TabsTrigger>
               <TabsTrigger value="manage">Token Management</TabsTrigger>
+              <TabsTrigger value="expiring">Expiring Tokens</TabsTrigger>
             </TabsList>
 
             <TabsContent value="manage">
@@ -960,6 +980,60 @@ export default function HomePage() {
                         ) : null}
                         Process Batch ({bulkData.length} items)
                       </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="expiring">
+              <Card><CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Tokens Expiring Soon
+                  </CardTitle>
+                  <CardDescription>
+                    View tokens that will expire in the next 30 days
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {expiringTokensQuery.isLoading ? (
+                    <div className="flex justify-center p-4">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : expiringTokensQuery.isError ? (
+                    <div className="text-destructive text-center p-4">
+                      Failed to load expiring tokens
+                    </div>
+                  ) : expiringTokensQuery.data?.length === 0 ? (
+                    <div className="text-muted-foreground text-center p-4">
+                      No tokens expiring in the next 30 days
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {expiringTokensQuery.data?.map((token) => (
+                        <Card key={token.token} className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                              <p className="font-medium">Token: {token.token}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Created: {format(new Date(token.created), 'PPp')}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Expires: {format(new Date(token.expires), 'PPp')}
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setManagementToken(token.token);
+                                handleExtend24h();
+                              }}
+                            >
+                              Extend 24h
+                            </Button>
+                          </div>
+                        </Card>
+                      ))}
                     </div>
                   )}
                 </CardContent>

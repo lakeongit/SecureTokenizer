@@ -191,6 +191,24 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add new endpoint for expiring tokens
+  app.get("/api/tokens/expiring/:days", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const days = parseInt(req.params.days) || 30;
+      const tokens = await storage.getExpiringTokens(req.user!.id, days);
+
+      res.json(tokens.map(token => ({
+        token: token.token,
+        created: token.created.toISOString(),
+        expires: token.expires.toISOString()
+      })));
+    } catch (err) {
+      next(err);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
