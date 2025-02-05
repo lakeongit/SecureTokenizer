@@ -198,13 +198,28 @@ export default function HomePage() {
         setBulkData(prev => [...prev, ...newBulkData]);
         setCsvError(null);
         event.target.value = '';
+
+        toast({
+          title: "CSV Import Successful",
+          description: `Successfully imported ${newBulkData.length} records from CSV`,
+        });
       } catch (error) {
         setCsvError('Failed to parse CSV file. Please check the format.');
+        toast({
+          title: "CSV Import Failed",
+          description: "Failed to parse the CSV file. Please check the format and try again.",
+          variant: "destructive",
+        });
       }
     };
 
     reader.onerror = () => {
       setCsvError('Failed to read the file.');
+      toast({
+        title: "CSV Import Failed",
+        description: "Failed to read the file. Please try again.",
+        variant: "destructive",
+      });
     };
 
     reader.readAsText(file);
