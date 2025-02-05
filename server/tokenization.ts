@@ -9,12 +9,14 @@ const KEY_VERSION = 1; // Increment this when rotating master key
 
 export class TokenizationService {
   private static instance: TokenizationService;
-  private masterKey: Buffer;
+  private currentMasterKey: Buffer;
+  private previousMasterKey: Buffer | null;
   private keyRotationInterval: NodeJS.Timer;
 
   private constructor() {
     // In production, this should be loaded from a secure key management service
-    this.masterKey = crypto.randomBytes(MASTER_KEY_SIZE);
+    this.currentMasterKey = crypto.randomBytes(MASTER_KEY_SIZE);
+    this.previousMasterKey = null;
     this.keyRotationInterval = setInterval(() => {
       this.rotateMasterKey();
     }, 24 * 60 * 60 * 1000); // Rotate master key every 24 hours
@@ -28,14 +30,15 @@ export class TokenizationService {
   }
 
   private rotateMasterKey(): void {
-    this.masterKey = crypto.randomBytes(MASTER_KEY_SIZE);
+    this.previousMasterKey = this.currentMasterKey;
+    this.currentMasterKey = crypto.randomBytes(MASTER_KEY_SIZE);
   }
 
   // Derive a unique key for each token using HKDF
-  private deriveKey(salt: Buffer): Buffer {
+  private deriveKey(salt: Buffer, masterKey: Buffer): Buffer {
     return crypto.hkdfSync(
       'sha256',
-      this.masterKey,
+      masterKey,
       salt,
       'TokenizationKey',
       32
@@ -94,8 +97,8 @@ export class TokenizationService {
     // Generate a unique salt for key derivation
     const salt = crypto.randomBytes(SALT_SIZE);
 
-    // Derive a unique encryption key for this token
-    const encryptionKey = this.deriveKey(salt);
+    // Derive a unique encryption key for this token using current master key
+    const encryptionKey = this.deriveKey(salt, this.currentMasterKey);
 
     // Generate a random IV for encryption
     const iv = crypto.randomBytes(16);
@@ -174,19 +177,29 @@ export class TokenizationService {
       throw new Error('Token was created with an old key version');
     }
 
-    // Derive the same key using the stored salt
-    const decryptionKey = this.deriveKey(salt);
+    // Try current master key first
+    let decrypted: string | null = null;
+    const keys = [this.currentMasterKey, this.previousMasterKey].filter(Boolean);
 
-    // Create decipher
-    const decipher = crypto.createDecipheriv('aes-256-gcm', decryptionKey, iv);
-    decipher.setAuthTag(authTag);
+    for (const key of keys) {
+      try {
+        const decryptionKey = this.deriveKey(salt, key);
+        const decipher = crypto.createDecipheriv('aes-256-gcm', decryptionKey, iv);
+        decipher.setAuthTag(authTag);
+        
+        decrypted = Buffer.concat([
+          decipher.update(encrypted),
+          decipher.final()
+        ]).toString('utf8');
+        break;
+      } catch (e) {
+        continue;
+      }
+    }
 
-    try {
-      // Decrypt the data
-      const decrypted = Buffer.concat([
-        decipher.update(encrypted),
-        decipher.final()
-      ]).toString('utf8');
+    if (!decrypted) {
+      throw new Error('Failed to decrypt token data: Unable to decrypt with any available keys');
+    }
 
       // Create audit log
       await storage.createAuditLog({
