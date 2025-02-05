@@ -37,6 +37,7 @@ export default function HomePage() {
   const [extensionHours, setExtensionHours] = useState("24");
   const [searchQuery, setSearchQuery] = useState("");
   const [customFieldName, setCustomFieldName] = useState("");
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   const handleFieldSelection = (fieldId: string) => {
     const field = getAllFields().find(f => f.id === fieldId);
@@ -242,7 +243,7 @@ export default function HomePage() {
 
   const filteredCategories = fieldCategories.map(category => ({
     ...category,
-    fields: category.fields.filter(field => 
+    fields: category.fields.filter(field =>
       field.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       field.description.toLowerCase().includes(searchQuery.toLowerCase())
     )
@@ -323,7 +324,7 @@ export default function HomePage() {
                         value={customFieldName}
                         onChange={(e) => setCustomFieldName(e.target.value)}
                       />
-                      <Button 
+                      <Button
                         variant="outline"
                         onClick={addCustomField}
                         disabled={!customFieldName.trim()}
