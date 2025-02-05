@@ -15,6 +15,42 @@ export type FieldCategory = {
 
 export const fieldCategories: FieldCategory[] = [
   {
+    name: "Healthcare",
+    description: "Medical and healthcare information",
+    fields: [
+      {
+        id: "patient_id",
+        name: "Patient ID",
+        description: "Healthcare patient identifier",
+        placeholder: "Patient ID number",
+        validation: {
+          pattern: "^[A-Z0-9]{4,10}$",
+          message: "Patient ID must be 4-10 characters (letters and numbers)"
+        }
+      },
+      {
+        id: "diagnosis_code",
+        name: "Diagnosis Code",
+        description: "Medical diagnosis code",
+        placeholder: "ICD-10 code",
+        validation: {
+          pattern: "^[A-Z][0-9][0-9A-Z](\\.?[0-9]{0,4})?$",
+          message: "Please enter a valid ICD-10 code format (e.g., A01, A01.1, A01.12)"
+        }
+      },
+      {
+        id: "medication_id",
+        name: "Medication ID",
+        description: "Prescription medication identifier",
+        placeholder: "Medication ID",
+        validation: {
+          pattern: "^[A-Z0-9]{5,10}$",
+          message: "Medication ID must be 5-10 characters (letters and numbers)"
+        }
+      }
+    ]
+  },
+  {
     name: "Financial",
     description: "Banking and payment information",
     fields: [
@@ -102,42 +138,6 @@ export const fieldCategories: FieldCategory[] = [
         validation: {
           pattern: "^[A-Z0-9]{6,9}$",
           message: "Passport number must be 6-9 characters (letters and numbers)"
-        }
-      }
-    ]
-  },
-  {
-    name: "Healthcare",
-    description: "Medical and healthcare information",
-    fields: [
-      {
-        id: "patient_id",
-        name: "Patient ID",
-        description: "Healthcare patient identifier",
-        placeholder: "Patient ID number",
-        validation: {
-          pattern: "^[A-Z0-9]{4,10}$",
-          message: "Patient ID must be 4-10 characters (letters and numbers)"
-        }
-      },
-      {
-        id: "diagnosis_code",
-        name: "Diagnosis Code",
-        description: "Medical diagnosis code",
-        placeholder: "ICD-10 code",
-        validation: {
-          pattern: "^[A-Z][0-9][0-9AB]\\.?[0-9]{1,4}[A-Z0-9]{0,4}$",
-          message: "Please enter a valid ICD-10 code format"
-        }
-      },
-      {
-        id: "medication_id",
-        name: "Medication ID",
-        description: "Prescription medication identifier",
-        placeholder: "Medication ID",
-        validation: {
-          pattern: "^[A-Z0-9]{5,10}$",
-          message: "Medication ID must be 5-10 characters (letters and numbers)"
         }
       }
     ]
