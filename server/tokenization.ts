@@ -14,9 +14,9 @@ export class TokenizationService {
   private keyRotationInterval: NodeJS.Timer;
 
   private constructor() {
-    const masterKeyHex = process.env.MASTER_KEY;
+    const masterKeyHex = process.env.TOKENIZATION_MASTER_KEY;
     if (!masterKeyHex) {
-      throw new Error('MASTER_KEY environment variable is required');
+      throw new Error('TOKENIZATION_MASTER_KEY environment variable is required');
     }
     this.currentMasterKey = Buffer.from(masterKeyHex, 'hex');
     this.previousMasterKey = null;
