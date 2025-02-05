@@ -34,7 +34,7 @@ export const fieldCategories: FieldCategory[] = [
         description: "Medical diagnosis code",
         placeholder: "ICD-10 code",
         validation: {
-          pattern: "^[A-Z][0-9][0-9A-Z](\\.?[0-9]{0,4})?$",
+          pattern: "^[A-Z][0-9][0-9A-Z]?(?:\\.[0-9]{1,4})?$",
           message: "Please enter a valid ICD-10 code format (e.g., A01, A01.1, A01.12)"
         }
       },
@@ -153,7 +153,14 @@ export const getAllFields = () =>
   );
 
 export const validateField = (fieldId: string, value: string): { isValid: boolean; message?: string } => {
-  const field = getAllFields().find(f => f.id === fieldId);
+  // Normalize the field ID by converting to lowercase and replacing spaces with underscores
+  const normalizedFieldId = fieldId.toLowerCase().replace(/\s+/g, '_');
+
+  // Find the field by normalized ID or by matching the normalized name
+  const field = getAllFields().find(f => 
+    f.id.toLowerCase() === normalizedFieldId || 
+    f.name.toLowerCase().replace(/\s+/g, '_') === normalizedFieldId
+  );
 
   if (!field?.validation) {
     return { isValid: true };
