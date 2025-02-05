@@ -485,6 +485,29 @@ export default function HomePage() {
               <TabsTrigger value="bulk">Bulk Operations</TabsTrigger>
               <TabsTrigger value="manage">Token Management</TabsTrigger>
             </TabsList>
+            
+            <TabsContent value="manage" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Token Management</CardTitle>
+                  <CardDescription>Manage your existing tokens</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="token">Token</Label>
+                      <Input id="token" placeholder="Enter token to manage..." />
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button onClick={() => window.tokenInfo()}>View Info</Button>
+                      <Button onClick={() => window.extendToken(24)}>Extend 24h</Button>
+                      <Button variant="destructive" onClick={() => window.revokeToken()}>Revoke</Button>
+                    </div>
+                  </div>
+                  <div className="mt-4" id="tokenStatus"></div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             <TabsContent value="tokenize">
               <Card>
