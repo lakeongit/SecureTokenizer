@@ -2,19 +2,22 @@ import crypto from "crypto";
 import { Token } from "@shared/schema";
 import { storage } from "./storage";
 
-const KEY_SIZE = 32;
+const MASTER_KEY_SIZE = 32;
 const TOKEN_SIZE = 32;
+const SALT_SIZE = 16;
+const KEY_VERSION = 1; // Increment this when rotating master key
 
 export class TokenizationService {
   private static instance: TokenizationService;
-  private currentKey: Buffer;
+  private masterKey: Buffer;
   private keyRotationInterval: NodeJS.Timer;
 
   private constructor() {
-    this.currentKey = this.generateKey();
+    // In production, this should be loaded from a secure key management service
+    this.masterKey = crypto.randomBytes(MASTER_KEY_SIZE);
     this.keyRotationInterval = setInterval(() => {
-      this.rotateKey();
-    }, 24 * 60 * 60 * 1000); // Rotate key every 24 hours
+      this.rotateMasterKey();
+    }, 24 * 60 * 60 * 1000); // Rotate master key every 24 hours
   }
 
   static getInstance(): TokenizationService {
@@ -24,87 +27,137 @@ export class TokenizationService {
     return TokenizationService.instance;
   }
 
-  private generateKey(): Buffer {
-    return crypto.randomBytes(KEY_SIZE);
+  private rotateMasterKey(): void {
+    this.masterKey = crypto.randomBytes(MASTER_KEY_SIZE);
   }
 
-  private rotateKey(): void {
-    this.currentKey = this.generateKey();
+  // Derive a unique key for each token using HKDF
+  private deriveKey(salt: Buffer): Buffer {
+    return crypto.hkdfSync(
+      'sha256',
+      this.masterKey,
+      salt,
+      'TokenizationKey',
+      32
+    );
   }
 
-  async tokenize(data: Record<string, string>, userId: number, expiryHours?: number): Promise<string> {
+  async tokenize(data: Record<string, string>, userId: number, expiryHours: number = 24): Promise<string> {
+    // Generate a random token identifier
     const token = crypto.randomBytes(TOKEN_SIZE).toString('hex');
-    const encryptedData = this.encrypt(JSON.stringify(data));
 
-    const expires = new Date(Date.now() + (expiryHours || 24) * 60 * 60 * 1000);
+    // Generate a unique salt for key derivation
+    const salt = crypto.randomBytes(SALT_SIZE);
 
+    // Derive a unique encryption key for this token
+    const encryptionKey = this.deriveKey(salt);
+
+    // Generate a random IV for encryption
+    const iv = crypto.randomBytes(16);
+
+    // Create cipher with the derived key
+    const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey, iv);
+
+    // Encrypt the data
+    const encrypted = Buffer.concat([
+      cipher.update(JSON.stringify(data), 'utf8'),
+      cipher.final(),
+    ]);
+
+    // Get the auth tag
+    const authTag = cipher.getAuthTag();
+
+    // Combine all components needed for decryption
+    const tokenData = Buffer.concat([
+      Buffer.from([KEY_VERSION]), // Version byte
+      salt,                       // Key derivation salt
+      iv,                        // Initialization vector
+      authTag,                   // Authentication tag
+      encrypted                  // Encrypted data
+    ]).toString('base64');
+
+    // Calculate expiration time
+    const expires = new Date(Date.now() + expiryHours * 60 * 60 * 1000);
+
+    // Store the token in the database
     await storage.createToken({
       token,
-      sensitiveData: encryptedData,
+      sensitiveData: tokenData,
       userId,
       created: new Date(),
       expires,
     });
 
+    // Create audit log
     await storage.createAuditLog({
       userId,
       action: 'tokenize',
-      details: JSON.stringify({ tokenId: token }),
+      details: JSON.stringify({ 
+        tokenId: token,
+        expiryHours,
+        keyVersion: KEY_VERSION 
+      }),
       timestamp: new Date(),
     });
 
     return token;
   }
 
-  async detokenize(token: string, userId: number): Promise<Record<string, string> | null> {
+  async detokenize(token: string, userId: number): Promise<Record<string, string>> {
+    // Retrieve token from database
     const tokenRecord = await storage.getToken(token);
 
     if (!tokenRecord) {
       throw new Error('Token not found');
     }
 
-    if (tokenRecord.expires && tokenRecord.expires < new Date()) {
+    if (tokenRecord.expires < new Date()) {
       throw new Error('Token expired');
     }
 
-    await storage.createAuditLog({
-      userId,
-      action: 'detokenize',
-      details: JSON.stringify({ tokenId: token }),
-      timestamp: new Date(),
-    });
+    // Decode the token data
+    const tokenData = Buffer.from(tokenRecord.sensitiveData, 'base64');
 
-    const decrypted = this.decrypt(tokenRecord.sensitiveData);
-    return JSON.parse(decrypted);
-  }
+    // Extract components
+    const version = tokenData[0];
+    const salt = tokenData.subarray(1, 1 + SALT_SIZE);
+    const iv = tokenData.subarray(1 + SALT_SIZE, 1 + SALT_SIZE + 16);
+    const authTag = tokenData.subarray(1 + SALT_SIZE + 16, 1 + SALT_SIZE + 32);
+    const encrypted = tokenData.subarray(1 + SALT_SIZE + 32);
 
-  private encrypt(data: string): string {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv('aes-256-gcm', this.currentKey, iv);
+    if (version !== KEY_VERSION) {
+      throw new Error('Token was created with an old key version');
+    }
 
-    const encrypted = Buffer.concat([
-      cipher.update(data, 'utf8'),
-      cipher.final(),
-    ]);
+    // Derive the same key using the stored salt
+    const decryptionKey = this.deriveKey(salt);
 
-    const authTag = cipher.getAuthTag();
-
-    return Buffer.concat([iv, authTag, encrypted]).toString('base64');
-  }
-
-  private decrypt(data: string): string {
-    const buf = Buffer.from(data, 'base64');
-    const iv = buf.subarray(0, 16);
-    const authTag = buf.subarray(16, 32);
-    const encrypted = buf.subarray(32);
-
-    const decipher = crypto.createDecipheriv('aes-256-gcm', this.currentKey, iv);
+    // Create decipher
+    const decipher = crypto.createDecipheriv('aes-256-gcm', decryptionKey, iv);
     decipher.setAuthTag(authTag);
 
-    return Buffer.concat([
-      decipher.update(encrypted),
-      decipher.final(),
-    ]).toString('utf8');
+    try {
+      // Decrypt the data
+      const decrypted = Buffer.concat([
+        decipher.update(encrypted),
+        decipher.final()
+      ]).toString('utf8');
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId,
+        action: 'detokenize',
+        details: JSON.stringify({ 
+          tokenId: token,
+          keyVersion: KEY_VERSION 
+        }),
+        timestamp: new Date(),
+      });
+
+      return JSON.parse(decrypted);
+    } catch (error) {
+      throw new Error('Failed to decrypt token data');
+    }
   }
 }
 
