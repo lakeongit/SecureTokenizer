@@ -209,6 +209,73 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add bulk token operations endpoint
+  app.post("/api/tokens/bulk-extend", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const { tokens, hours } = req.body;
+      if (!Array.isArray(tokens) || !hours || typeof hours !== "number" || hours <= 0) {
+        return res.status(400).json({ message: "Invalid request parameters" });
+      }
+
+      const results = await Promise.all(
+        tokens.map(async (token) => {
+          try {
+            await tokenizationService.extendTokenExpiry(token, req.user!.id, hours);
+            return { token, success: true };
+          } catch (error) {
+            return { token, success: false, error: error instanceof Error ? error.message : "Unknown error" };
+          }
+        })
+      );
+
+      res.json({
+        results,
+        summary: {
+          total: tokens.length,
+          successful: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post("/api/tokens/bulk-revoke", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const { tokens } = req.body;
+      if (!Array.isArray(tokens)) {
+        return res.status(400).json({ message: "Invalid request parameters" });
+      }
+
+      const results = await Promise.all(
+        tokens.map(async (token) => {
+          try {
+            await tokenizationService.revokeToken(token, req.user!.id);
+            return { token, success: true };
+          } catch (error) {
+            return { token, success: false, error: error instanceof Error ? error.message : "Unknown error" };
+          }
+        })
+      );
+
+      res.json({
+        results,
+        summary: {
+          total: tokens.length,
+          successful: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Shield, Key, Clock, Search, Plus } from "lucide-react";
+import { Loader2, Shield, Key, Clock, Search, Plus, Filter } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -29,6 +29,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Tutorial } from "@/components/Tutorial";
 import { Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 // Add TypeScript interfaces for API responses
 interface TokenizationResult {
@@ -55,6 +63,21 @@ interface ExpiringToken {
   expires: string;
 }
 
+interface TokenOperation {
+  token: string;
+  success: boolean;
+  error?: string;
+}
+
+interface BulkOperationResult {
+  results: TokenOperation[];
+  summary: {
+    total: number;
+    successful: number;
+    failed: number;
+  };
+}
+
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
@@ -69,6 +92,10 @@ export default function HomePage() {
   const [csvError, setCsvError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [managementToken, setManagementToken] = useState("");
+  const [selectedTokens, setSelectedTokens] = useState<string[]>([]);
+  const [tokenSearch, setTokenSearch] = useState("");
+  const [filterDays, setFilterDays] = useState(30);
+  const [showExpired, setShowExpired] = useState(false);
 
   const handleFieldSelection = (fieldId: string) => {
     const field = getAllFields().find(f => f.id === fieldId);
@@ -525,14 +552,58 @@ export default function HomePage() {
 
 
   const expiringTokensQuery = useQuery({
-    queryKey: ['/api/tokens/expiring/30'],
+    queryKey: ['/api/tokens/expiring', filterDays],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/tokens/expiring/30");
+      const res = await apiRequest("GET", `/api/tokens/expiring/${filterDays}`);
       if (!res.ok) {
         throw new Error("Failed to fetch expiring tokens");
       }
       return res.json() as Promise<ExpiringToken[]>;
     }
+  });
+
+  const bulkExtendMutation = useMutation({
+    mutationFn: async ({ tokens, hours }: { tokens: string[], hours: number }) => {
+      const res = await apiRequest("POST", "/api/tokens/bulk-extend", { tokens, hours });
+      return res.json() as Promise<BulkOperationResult>;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Bulk Extension Complete",
+        description: `Successfully extended ${data.summary.successful} out of ${data.summary.total} tokens`,
+      });
+      setSelectedTokens([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/tokens/expiring', filterDays] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Bulk Extension Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkRevokeMutation = useMutation({
+    mutationFn: async (tokens: string[]) => {
+      const res = await apiRequest("POST", "/api/tokens/bulk-revoke", { tokens });
+      return res.json() as Promise<BulkOperationResult>;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Bulk Revocation Complete",
+        description: `Successfully revoked ${data.summary.successful} out of ${data.summary.total} tokens`,
+      });
+      setSelectedTokens([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/tokens/expiring', filterDays] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Bulk Revocation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   return (
@@ -986,56 +1057,145 @@ export default function HomePage() {
               </Card>
             </TabsContent>
             <TabsContent value="expiring">
-              <Card><CardHeader>
+              <Card>
+                <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="h-5 w-5" />
                     Tokens Expiring Soon
                   </CardTitle>
                   <CardDescription>
-                    View tokens that will expire in the next 30 days
+                    View and manage tokens that will expire in the next {filterDays} days
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {expiringTokensQuery.isLoading ? (
-                    <div className="flex justify-center p-4">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    </div>
-                  ) : expiringTokensQuery.isError ? (
-                    <div className="text-destructive text-center p-4">
-                      Failed to load expiring tokens
-                    </div>
-                  ) : expiringTokensQuery.data?.length === 0 ? (
-                    <div className="text-muted-foreground text-center p-4">
-                      No tokens expiring in the next 30 days
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {expiringTokensQuery.data?.map((token) => (
-                        <Card key={token.token} className="p-4">
-                          <div className="flex justify-between items-start">
-                            <div className="space-y-1">
-                              <p className="font-medium">Token: {token.token}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Created: {format(new Date(token.created), 'PPp')}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Expires: {format(new Date(token.expires), 'PPp')}
-                              </p>
-                            </div>
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setManagementToken(token.token);
-                                handleExtend24h();
-                              }}
-                            >
-                              Extend 24h
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <Label>Search Tokens</Label>
+                        <div className="relative">
+                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search by token..."
+                            className="pl-8"
+                            value={tokenSearch}
+                            onChange={(e) => setTokenSearch(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <Label>Filter Options</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full">
+                              <Filter className="h-4 w-4 mr-2" />
+                              Filter
                             </Button>
-                          </div>
-                        </Card>
-                      ))}
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={() => setFilterDays(7)}>
+                              Next 7 days
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setFilterDays(30)}>
+                              Next 30 days
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setFilterDays(90)}>
+                              Next 90 days
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
-                  )}
+
+                    {selectedTokens.length > 0 && (
+                      <div className="flex items-center justify-between bg-muted p-4 rounded-lg">
+                        <span>{selectedTokens.length} tokens selected</span>
+                        <div className="space-x-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => bulkExtendMutation.mutate({
+                              tokens: selectedTokens,
+                              hours: 24
+                            })}
+                            disabled={bulkExtendMutation.isPending}
+                          >
+                            {bulkExtendMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : null}
+                            Extend Selected
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to revoke the selected tokens? This action cannot be undone.')) {
+                                bulkRevokeMutation.mutate(selectedTokens);
+                              }
+                            }}
+                            disabled={bulkRevokeMutation.isPending}
+                          >
+                            {bulkRevokeMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : null}
+                            Revoke Selected
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {expiringTokensQuery.isLoading ? (
+                      <div className="flex justify-center p-4">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      </div>
+                    ) : expiringTokensQuery.isError ? (
+                      <div className="text-destructive text-center p-4">
+                        Failed to load expiring tokens
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {expiringTokensQuery.data
+                          ?.filter(token =>
+                            token.token.toLowerCase().includes(tokenSearch.toLowerCase())
+                          )
+                          .map((token) => (
+                            <Card key={token.token} className="p-4">
+                              <div className="flex items-start gap-4">
+                                <Checkbox
+                                  checked={selectedTokens.includes(token.token)}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedTokens(prev =>
+                                      checked
+                                        ? [...prev, token.token]
+                                        : prev.filter(t => t !== token.token)
+                                    );
+                                  }}
+                                />
+                                <div className="flex-1">
+                                  <div className="flex justify-between items-start">
+                                    <div className="space-y-1">
+                                      <p className="font-medium">Token: {token.token}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Created: {format(new Date(token.created), 'PPp')}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Expires: {format(new Date(token.expires), 'PPp')}
+                                      </p>
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        setManagementToken(token.token);
+                                        handleExtend24h();
+                                      }}
+                                    >
+                                      Extend 24h
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
