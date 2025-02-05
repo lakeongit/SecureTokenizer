@@ -7,9 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Shield, Key, Clock, AlertCircle } from "lucide-react";
+import { Loader2, Shield, Key, Clock, AlertCircle, Upload } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
 
@@ -18,22 +17,15 @@ export default function HomePage() {
   const { toast } = useToast();
   const [detokenizeQuery, setDetokenizeQuery] = useState("");
   const [sensitiveData, setSensitiveData] = useState<Record<string, string>>({
-    // Credit Card Data
     card_number: "4111-1111-1111-1111",
     cvv: "123",
     expiry: "12/25",
-
-    // Personal Information
     ssn: "123-45-6789",
     drivers_license: "D1234567",
     passport: "P1234567",
-
-    // Financial Data
     bank_account: "12345678",
     routing_number: "987654321",
     iban: "DE89370400440532013000",
-
-    // Healthcare Data
     patient_id: "PT123456",
     diagnosis_code: "ICD10-F41.1",
     medication_id: "MED789"
@@ -42,8 +34,8 @@ export default function HomePage() {
   const [bulkData, setBulkData] = useState<Array<Record<string, string>>>([]);
   const [selectedToken, setSelectedToken] = useState("");
   const [extensionHours, setExtensionHours] = useState("24");
+  const [csvError, setCsvError] = useState<string | null>(null);
 
-  // Add field to sensitive data
   const addField = () => {
     setSensitiveData(prev => ({
       ...prev,
@@ -51,13 +43,11 @@ export default function HomePage() {
     }));
   };
 
-  // Remove field from sensitive data
   const removeField = (key: string) => {
     const { [key]: _, ...rest } = sensitiveData;
     setSensitiveData(rest);
   };
 
-  // Tokenize mutation
   const tokenizeMutation = useMutation({
     mutationFn: async (data: { data: Record<string, string>, expiryHours: number }) => {
       const res = await apiRequest("POST", "/api/tokenize", data);
@@ -80,7 +70,6 @@ export default function HomePage() {
     },
   });
 
-  // Detokenize mutation
   const detokenizeMutation = useMutation({
     mutationFn: async (token: string) => {
       const res = await apiRequest("POST", "/api/detokenize", { token });
@@ -101,7 +90,6 @@ export default function HomePage() {
     },
   });
 
-  // Bulk tokenize mutation
   const bulkTokenizeMutation = useMutation({
     mutationFn: async (data: Array<{ data: Record<string, string>, expiryHours: number }>) => {
       const res = await apiRequest("POST", "/api/bulk-tokenize", data);
@@ -123,7 +111,6 @@ export default function HomePage() {
     },
   });
 
-  // Extend token mutation
   const extendTokenMutation = useMutation({
     mutationFn: async ({ token, hours }: { token: string, hours: number }) => {
       await apiRequest("POST", `/api/tokens/${token}/extend`, { hours });
@@ -145,7 +132,6 @@ export default function HomePage() {
     },
   });
 
-  // Revoke token mutation
   const revokeTokenMutation = useMutation({
     mutationFn: async (token: string) => {
       await apiRequest("POST", `/api/tokens/${token}/revoke`);
@@ -166,7 +152,6 @@ export default function HomePage() {
     },
   });
 
-  // Add to bulk data
   const addToBulk = () => {
     if (Object.keys(sensitiveData).length > 0) {
       setBulkData(prev => [...prev, { ...sensitiveData }]);
@@ -174,7 +159,6 @@ export default function HomePage() {
     }
   };
 
-  // Process bulk data
   const processBulk = () => {
     const items = bulkData.map(data => ({
       data,
@@ -183,9 +167,47 @@ export default function HomePage() {
     bulkTokenizeMutation.mutate(items);
   };
 
-  // Remove from bulk data
   const removeFromBulk = (index: number) => {
     setBulkData(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const rows = text.split('\n');
+        const headers = rows[0].split(',').map(h => h.trim());
+
+        const newBulkData = rows.slice(1)
+          .filter(row => row.trim())
+          .map(row => {
+            const values = row.split(',').map(v => v.trim());
+            const item: Record<string, string> = {};
+            headers.forEach((header, index) => {
+              if (values[index]) {
+                item[header] = values[index];
+              }
+            });
+            return item;
+          });
+
+        setBulkData(prev => [...prev, ...newBulkData]);
+        setCsvError(null);
+        event.target.value = '';
+      } catch (error) {
+        setCsvError('Failed to parse CSV file. Please check the format.');
+      }
+    };
+
+    reader.onerror = () => {
+      setCsvError('Failed to read the file.');
+    };
+
+    reader.readAsText(file);
   };
 
   return (
@@ -365,6 +387,35 @@ export default function HomePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <Label>Upload CSV File</Label>
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCsvUpload}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      CSV should have headers matching the field names you want to tokenize
+                    </p>
+                    {csvError && (
+                      <p className="text-sm text-destructive">{csvError}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or add items manually
+                    </span>
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   {Object.entries(sensitiveData).map(([key, value]) => (
                     <div key={key} className="flex gap-4">
