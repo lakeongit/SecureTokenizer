@@ -32,11 +32,8 @@ export const fieldCategories: FieldCategory[] = [
         id: "diagnosis_code",
         name: "Diagnosis Code",
         description: "Medical diagnosis code",
-        placeholder: "ICD-10 code",
-        validation: {
-          pattern: "^[A-Z0-9][0-9A-Z]*$",
-          message: "Please enter an alphanumeric diagnosis code"
-        }
+        placeholder: "ICD-10 code"
+        // Removed validation rules to accept any format
       },
       {
         id: "medication_id",
