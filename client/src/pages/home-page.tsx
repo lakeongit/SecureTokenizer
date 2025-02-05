@@ -220,19 +220,11 @@ export default function HomePage() {
     }
   };
 
-  const processBulk = () => {
-    const items = bulkData.map(data => ({
-      data,
-      expiryHours: parseInt(expiryHours),
-    }));
-    bulkTokenizeMutation.mutate(items);
-  };
-
   const removeFromBulk = (index: number) => {
     setBulkData(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCsvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -243,13 +235,31 @@ export default function HomePage() {
         const rows = text.split('\n');
         const headers = rows[0].split(',').map(h => h.trim());
 
+        // Validate headers
+        if (headers.length === 0) {
+          throw new Error('CSV file must contain at least one column');
+        }
+
+        // Process and validate each row
         const newBulkData = rows.slice(1)
           .filter(row => row.trim())
-          .map(row => {
+          .map((row, index) => {
             const values = row.split(',').map(v => v.trim());
+            if (values.length !== headers.length) {
+              throw new Error(`Row ${index + 2} has ${values.length} columns but should have ${headers.length}`);
+            }
+
             const item: Record<string, string> = {};
             headers.forEach((header, index) => {
+              if (!header) {
+                throw new Error(`Invalid header name at column ${index + 1}`);
+              }
               if (values[index]) {
+                // Validate field based on header name if it matches a predefined field
+                const validation = validateField(header, values[index]);
+                if (!validation.isValid) {
+                  throw new Error(`Row ${index + 2}, column "${header}": ${validation.message}`);
+                }
                 item[header] = values[index];
               }
             });
@@ -265,25 +275,77 @@ export default function HomePage() {
           description: `Successfully imported ${newBulkData.length} records from CSV`,
         });
       } catch (error) {
-        setCsvError('Failed to parse CSV file. Please check the format.');
+        const errorMessage = error instanceof Error ? error.message : 'Failed to parse CSV file';
+        setCsvError(errorMessage);
         toast({
           title: "CSV Import Failed",
-          description: "Failed to parse the CSV file. Please check the format and try again.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
     };
 
     reader.onerror = () => {
-      setCsvError('Failed to read the file.');
+      const errorMessage = 'Failed to read the file';
+      setCsvError(errorMessage);
       toast({
         title: "CSV Import Failed",
-        description: "Failed to read the file. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     };
 
     reader.readAsText(file);
+  };
+
+  const processBulk = async () => {
+    try {
+      const items = bulkData.map(data => ({
+        data,
+        expiryHours: parseInt(expiryHours),
+      }));
+
+      const result = await bulkTokenizeMutation.mutateAsync(items);
+
+      // Calculate success/failure statistics
+      const successful = result.results.filter(r => r.success).length;
+      const failed = result.results.filter(r => !r.success).length;
+
+      // Show detailed toast with statistics
+      toast({
+        title: "Bulk Tokenization Complete",
+        description: (
+          <div className="space-y-2">
+            <p>Successfully processed {successful} items</p>
+            {failed > 0 && (
+              <p className="text-destructive">Failed to process {failed} items</p>
+            )}
+          </div>
+        ),
+        duration: 5000,
+      });
+
+      // If any items failed, show the errors
+      const errors = result.results
+        .filter(r => !r.success)
+        .map(r => r.error);
+
+      if (errors.length > 0) {
+        console.error("Bulk tokenization errors:", errors);
+      }
+
+      setBulkData([]);
+    } catch (error) {
+      toast({
+        title: "Bulk Tokenization Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addField = () => {
+    setSensitiveData(prev => ({...prev, '': ''}));
   };
 
   const filteredCategories = fieldCategories.map(category => ({
@@ -600,6 +662,9 @@ export default function HomePage() {
                     <Key className="h-5 w-5" />
                     Bulk Tokenization
                   </CardTitle>
+                  <CardDescription>
+                    Upload a CSV file or manually add items for bulk tokenization
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
