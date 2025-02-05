@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Shield, Key, Clock, AlertCircle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Link } from "wouter";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
@@ -21,17 +22,17 @@ export default function HomePage() {
     card_number: "4111-1111-1111-1111",
     cvv: "123",
     expiry: "12/25",
-    
+
     // Personal Information
     ssn: "123-45-6789",
     drivers_license: "D1234567",
     passport: "P1234567",
-    
+
     // Financial Data
     bank_account: "12345678",
     routing_number: "987654321",
     iban: "DE89370400440532013000",
-    
+
     // Healthcare Data
     patient_id: "PT123456",
     diagnosis_code: "ICD10-F41.1",
@@ -109,6 +110,12 @@ export default function HomePage() {
             <span className="text-sm text-muted-foreground">
               Logged in as {user?.username}
             </span>
+            <Link href="/audit-logs">
+              <Button variant="outline" className="gap-2">
+                <Clock className="h-4 w-4" />
+                Audit Logs
+              </Button>
+            </Link>
             <Button
               variant="outline"
               onClick={() => logoutMutation.mutate()}
