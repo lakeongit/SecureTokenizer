@@ -35,14 +35,14 @@ export class TokenizationService {
   async tokenize(data: Record<string, string>, userId: number, expiryHours?: number): Promise<string> {
     const token = crypto.randomBytes(TOKEN_SIZE).toString('hex');
     const encryptedData = this.encrypt(JSON.stringify(data));
-    
+
     const expires = expiryHours 
       ? new Date(Date.now() + expiryHours * 60 * 60 * 1000)
-      : undefined;
+      : null; 
 
     await storage.createToken({
       token,
-      sensitiveData: { data: encryptedData },
+      sensitiveData: encryptedData, 
       userId,
       created: new Date(),
       expires,
@@ -60,7 +60,7 @@ export class TokenizationService {
 
   async detokenize(token: string, userId: number): Promise<Record<string, string> | null> {
     const tokenRecord = await storage.getToken(token);
-    
+
     if (!tokenRecord) {
       throw new Error('Token not found');
     }
@@ -76,21 +76,21 @@ export class TokenizationService {
       timestamp: new Date(),
     });
 
-    const decrypted = this.decrypt(tokenRecord.sensitiveData.data);
+    const decrypted = this.decrypt(tokenRecord.sensitiveData as string);
     return JSON.parse(decrypted);
   }
 
   private encrypt(data: string): string {
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv('aes-256-gcm', this.currentKey, iv);
-    
+
     const encrypted = Buffer.concat([
       cipher.update(data, 'utf8'),
       cipher.final(),
     ]);
 
     const authTag = cipher.getAuthTag();
-    
+
     return Buffer.concat([iv, authTag, encrypted]).toString('base64');
   }
 

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, jsonb, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -12,17 +12,17 @@ export const users = pgTable("users", {
 export const tokens = pgTable("tokens", {
   id: serial("id").primaryKey(),
   token: varchar("token", { length: 64 }).notNull().unique(),
-  sensitiveData: jsonb("sensitive_data").notNull(),
+  sensitiveData: text("sensitive_data").notNull(), 
   userId: serial("user_id").references(() => users.id),
   created: timestamp("created").notNull().defaultNow(),
-  expires: timestamp("expires"),
+  expires: timestamp("expires").notNull(), 
 });
 
 export const auditLogs = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
   userId: serial("user_id").references(() => users.id),
   action: text("action").notNull(),
-  details: jsonb("details"),
+  details: text("details").notNull(), 
   timestamp: timestamp("timestamp").notNull().defaultNow(),
 });
 
