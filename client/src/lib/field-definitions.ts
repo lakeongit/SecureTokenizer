@@ -6,7 +6,10 @@ export type FieldCategory = {
     name: string;
     description: string;
     placeholder: string;
-    validation?: string;
+    validation?: {
+      pattern: string;
+      message: string;
+    };
   }[];
 };
 
@@ -20,33 +23,50 @@ export const fieldCategories: FieldCategory[] = [
         name: "Credit Card Number",
         description: "16-digit payment card number",
         placeholder: "XXXX-XXXX-XXXX-XXXX",
-        validation: "^[0-9-]{16,19}$"
+        validation: {
+          pattern: "^\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}$",
+          message: "Please enter a valid 16-digit card number"
+        }
       },
       {
         id: "cvv",
         name: "CVV",
         description: "Card verification value",
         placeholder: "123",
-        validation: "^[0-9]{3,4}$"
+        validation: {
+          pattern: "^\\d{3,4}$",
+          message: "CVV must be 3 or 4 digits"
+        }
       },
       {
         id: "bank_account",
         name: "Bank Account",
         description: "Bank account number",
         placeholder: "Account number",
+        validation: {
+          pattern: "^\\d{8,17}$",
+          message: "Bank account number must be between 8 and 17 digits"
+        }
       },
       {
         id: "iban",
         name: "IBAN",
         description: "International Bank Account Number",
         placeholder: "International bank account number",
+        validation: {
+          pattern: "^[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{7}([A-Z0-9]?){0,16}$",
+          message: "Please enter a valid IBAN format"
+        }
       },
       {
         id: "routing_number",
         name: "Routing Number",
         description: "Bank routing number",
         placeholder: "9-digit routing number",
-        validation: "^[0-9]{9}$"
+        validation: {
+          pattern: "^\\d{9}$",
+          message: "Routing number must be exactly 9 digits"
+        }
       }
     ]
   },
@@ -59,19 +79,30 @@ export const fieldCategories: FieldCategory[] = [
         name: "Social Security Number",
         description: "US Social Security Number",
         placeholder: "XXX-XX-XXXX",
-        validation: "^[0-9-]{9,11}$"
+        validation: {
+          pattern: "^\\d{3}-?\\d{2}-?\\d{4}$",
+          message: "Please enter a valid SSN (XXX-XX-XXXX)"
+        }
       },
       {
         id: "drivers_license",
         name: "Driver's License",
         description: "Driver's license number",
-        placeholder: "License number"
+        placeholder: "License number",
+        validation: {
+          pattern: "^[A-Z0-9]{6,14}$",
+          message: "Driver's license must be 6-14 characters (letters and numbers)"
+        }
       },
       {
         id: "passport",
         name: "Passport Number",
         description: "International passport number",
-        placeholder: "Passport number"
+        placeholder: "Passport number",
+        validation: {
+          pattern: "^[A-Z0-9]{6,9}$",
+          message: "Passport number must be 6-9 characters (letters and numbers)"
+        }
       }
     ]
   },
@@ -83,19 +114,31 @@ export const fieldCategories: FieldCategory[] = [
         id: "patient_id",
         name: "Patient ID",
         description: "Healthcare patient identifier",
-        placeholder: "Patient ID number"
+        placeholder: "Patient ID number",
+        validation: {
+          pattern: "^[A-Z0-9]{4,10}$",
+          message: "Patient ID must be 4-10 characters (letters and numbers)"
+        }
       },
       {
         id: "diagnosis_code",
         name: "Diagnosis Code",
         description: "Medical diagnosis code",
-        placeholder: "ICD-10 code"
+        placeholder: "ICD-10 code",
+        validation: {
+          pattern: "^[A-Z][0-9][0-9AB]\\.?[0-9]{1,4}[A-Z0-9]{0,4}$",
+          message: "Please enter a valid ICD-10 code format"
+        }
       },
       {
         id: "medication_id",
         name: "Medication ID",
         description: "Prescription medication identifier",
-        placeholder: "Medication ID"
+        placeholder: "Medication ID",
+        validation: {
+          pattern: "^[A-Z0-9]{5,10}$",
+          message: "Medication ID must be 5-10 characters (letters and numbers)"
+        }
       }
     ]
   }
@@ -108,3 +151,17 @@ export const getAllFields = () =>
       category: category.name
     }))
   );
+
+export const validateField = (fieldId: string, value: string): { isValid: boolean; message?: string } => {
+  const field = getAllFields().find(f => f.id === fieldId);
+
+  if (!field?.validation) {
+    return { isValid: true };
+  }
+
+  const regex = new RegExp(field.validation.pattern);
+  return {
+    isValid: regex.test(value),
+    message: regex.test(value) ? undefined : field.validation.message
+  };
+};

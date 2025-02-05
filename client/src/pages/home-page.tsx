@@ -12,7 +12,7 @@ import { Loader2, Shield, Key, Clock, Search, Plus } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { fieldCategories, getAllFields } from "@/lib/field-definitions";
+import { fieldCategories, getAllFields, validateField } from "@/lib/field-definitions";
 import {
   Select,
   SelectContent,
@@ -25,8 +25,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { TooltipProvider } from "@/components/ui/tooltip"; //Import added here
-
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
@@ -40,6 +39,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [customFieldName, setCustomFieldName] = useState("");
   const [csvError, setCsvError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const handleFieldSelection = (fieldId: string) => {
     const field = getAllFields().find(f => f.id === fieldId);
@@ -63,7 +63,6 @@ export default function HomePage() {
   const addCustomField = () => {
     const normalizedFieldName = customFieldName.trim().toLowerCase().replace(/\s+/g, '_');
 
-    // Check if field already exists in predefined fields
     const existingPredefinedField = getAllFields().find(f =>
       f.id.toLowerCase() === normalizedFieldName ||
       f.name.toLowerCase().replace(/\s+/g, '_') === normalizedFieldName
@@ -78,7 +77,6 @@ export default function HomePage() {
       return;
     }
 
-    // Check if field name already exists in custom fields
     if (normalizedFieldName in sensitiveData) {
       toast({
         title: "Duplicate field",
@@ -98,6 +96,10 @@ export default function HomePage() {
   const removeField = (key: string) => {
     const { [key]: _, ...rest } = sensitiveData;
     setSensitiveData(rest);
+    setValidationErrors(prev => {
+      const { [key]: __, ...rest } = prev;
+      return rest;
+    });
   };
 
   const tokenizeMutation = useMutation({
@@ -112,6 +114,7 @@ export default function HomePage() {
       });
       setSensitiveData({});
       setExpiryHours("24");
+      setValidationErrors({});
     },
     onError: (error: Error) => {
       toast({
@@ -285,6 +288,38 @@ export default function HomePage() {
     )
   })).filter(category => category.fields.length > 0);
 
+  const handleTokenize = () => {
+    const allValidations = Object.entries(sensitiveData).map(([key, value]) => ({
+      key,
+      ...validateField(key, value)
+    }));
+
+    const invalidFields = allValidations.filter(v => !v.isValid);
+
+    if (invalidFields.length > 0) {
+      const newErrors: Record<string, string> = {};
+      invalidFields.forEach(field => {
+        if (field.message) {
+          newErrors[field.key] = field.message;
+        }
+      });
+      setValidationErrors(newErrors);
+
+      toast({
+        title: "Validation Error",
+        description: "Please correct the invalid fields before tokenizing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    tokenizeMutation.mutate({
+      data: sensitiveData,
+      expiryHours: parseInt(expiryHours),
+    });
+  };
+
+
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background">
@@ -419,13 +454,33 @@ export default function HomePage() {
                               <Input
                                 value={value}
                                 onChange={(e) => {
+                                  const newValue = e.target.value;
                                   setSensitiveData(prev => ({
                                     ...prev,
-                                    [key]: e.target.value,
+                                    [key]: newValue,
                                   }));
+
+                                  const validation = validateField(key, newValue);
+                                  if (!validation.isValid && validation.message) {
+                                    setValidationErrors(prev => ({
+                                      ...prev,
+                                      [key]: validation.message
+                                    }));
+                                  } else {
+                                    setValidationErrors(prev => {
+                                      const { [key]: _, ...rest } = prev;
+                                      return rest;
+                                    });
+                                  }
                                 }}
                                 placeholder={getAllFields().find(f => f.id === key)?.placeholder || "Enter value..."}
+                                className={validationErrors[key] ? "border-destructive" : ""}
                               />
+                              {validationErrors[key] && (
+                                <p className="text-sm text-destructive mt-1">
+                                  {validationErrors[key]}
+                                </p>
+                              )}
                             </div>
                             <Button
                               variant="ghost"
@@ -472,10 +527,7 @@ export default function HomePage() {
                   <div className="flex justify-end gap-4">
                     <Button
                       variant="default"
-                      onClick={() => tokenizeMutation.mutate({
-                        data: sensitiveData,
-                        expiryHours: parseInt(expiryHours),
-                      })}
+                      onClick={handleTokenize}
                       disabled={tokenizeMutation.isPending || Object.keys(sensitiveData).length === 0}
                     >
                       {tokenizeMutation.isPending ? (
