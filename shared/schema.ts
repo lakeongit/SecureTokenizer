@@ -12,7 +12,7 @@ export const users = pgTable("users", {
 export const tokens = pgTable("tokens", {
   id: serial("id").primaryKey(),
   token: varchar("token", { length: 64 }).notNull().unique(),
-  sensitiveData: text("sensitive_data").notNull(), 
+  sensitiveData: text("sensitive_data").notNull().unique(), 
   userId: serial("user_id").references(() => users.id),
   created: timestamp("created").notNull().defaultNow(),
   expires: timestamp("expires").notNull(), 

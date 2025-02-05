@@ -14,6 +14,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   createToken(token: Omit<Token, "id">): Promise<Token>;
   getToken(token: string): Promise<Token | undefined>;
+  getTokenBySensitiveData(sensitiveData: string): Promise<Token | undefined>;
   updateTokenExpiry(token: string, expires: Date): Promise<Token>;
   createAuditLog(log: Omit<AuditLog, "id">): Promise<AuditLog>;
   getAuditLogs(userId: number): Promise<AuditLog[]>;
@@ -52,6 +53,11 @@ export class DatabaseStorage implements IStorage {
 
   async getToken(tokenStr: string): Promise<Token | undefined> {
     const [token] = await db.select().from(tokens).where(eq(tokens.token, tokenStr));
+    return token;
+  }
+
+  async getTokenBySensitiveData(sensitiveData: string): Promise<Token | undefined> {
+    const [token] = await db.select().from(tokens).where(eq(tokens.sensitiveData, sensitiveData));
     return token;
   }
 

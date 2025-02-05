@@ -14,14 +14,12 @@ const apiLimiter = rateLimit({
 });
 
 export function registerRoutes(app: Express): Server {
-  // Enable trust proxy
   app.set('trust proxy', 1);
 
   setupAuth(app);
-
   app.use("/api", apiLimiter);
 
-  // Bulk tokenization endpoint
+  // Bulk tokenization endpoint with duplicate detection
   app.post("/api/bulk-tokenize", async (req, res, next) => {
     try {
       if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -35,6 +33,20 @@ export function registerRoutes(app: Express): Server {
         items.map(async (item) => {
           try {
             const { data, expiryHours } = tokenizationSchema.parse(item);
+            const serializedData = JSON.stringify(data);
+
+            // Check for existing token with the same data
+            const existingToken = await storage.getTokenBySensitiveData(serializedData);
+            if (existingToken) {
+              return {
+                success: false,
+                isDuplicate: true,
+                error: "Data already tokenized",
+                existingToken: existingToken.token,
+                expiryDate: existingToken.expires
+              };
+            }
+
             const token = await tokenizationService.tokenize(
               data,
               req.user!.id,
@@ -42,12 +54,29 @@ export function registerRoutes(app: Express): Server {
             );
             return { success: true, token };
           } catch (err) {
-            return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+            return {
+              success: false,
+              isDuplicate: false,
+              error: err instanceof Error ? err.message : "Unknown error"
+            };
           }
         })
       );
 
-      res.json({ results });
+      // Count duplicates and failures
+      const duplicates = results.filter(r => r.isDuplicate).length;
+      const failures = results.filter(r => !r.success && !r.isDuplicate).length;
+      const successes = results.filter(r => r.success).length;
+
+      res.json({
+        results,
+        summary: {
+          total: items.length,
+          processed: successes,
+          duplicates,
+          failures
+        }
+      });
     } catch (err) {
       next(err);
     }
@@ -84,12 +113,23 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Existing tokenization endpoints
   app.post("/api/tokenize", async (req, res, next) => {
     try {
       if (!req.isAuthenticated()) return res.sendStatus(401);
 
       const { data, expiryHours } = tokenizationSchema.parse(req.body);
+
+      // Check for existing token with the same data
+      const serializedData = JSON.stringify(data);
+      const existingToken = await storage.getTokenBySensitiveData(serializedData);
+      if (existingToken) {
+        return res.status(409).json({
+          message: "Data already tokenized",
+          existingToken: existingToken.token,
+          expiryDate: existingToken.expires
+        });
+      }
+
       const token = await tokenizationService.tokenize(
         data,
         req.user!.id,
@@ -118,7 +158,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add audit logs endpoint
   app.get("/api/audit-logs", async (req, res, next) => {
     try {
       if (!req.isAuthenticated()) return res.sendStatus(401);
