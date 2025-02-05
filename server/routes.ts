@@ -9,9 +9,14 @@ import { storage } from "./storage";
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 export function registerRoutes(app: Express): Server {
+  // Enable trust proxy
+  app.set('trust proxy', 1);
+
   setupAuth(app);
 
   app.use("/api", apiLimiter);
@@ -118,12 +123,6 @@ export function registerRoutes(app: Express): Server {
     try {
       if (!req.isAuthenticated()) return res.sendStatus(401);
 
-      // In a production environment, we would want to:
-      // 1. Add pagination
-      // 2. Add filtering options
-      // 3. Add date range selection
-      // 4. Add role-based access control
-      // For now, we'll keep it simple
       const logs = await storage.getAuditLogs(req.user!.id);
       res.json(logs);
     } catch (err) {
