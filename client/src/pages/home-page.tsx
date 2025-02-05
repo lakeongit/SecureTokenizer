@@ -44,6 +44,15 @@ export default function HomePage() {
   const handleFieldSelection = (fieldId: string) => {
     const field = getAllFields().find(f => f.id === fieldId);
     if (field) {
+      if (fieldId in sensitiveData) {
+        toast({
+          title: "Duplicate field",
+          description: "This field has already been added to your selection.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setSensitiveData(prev => ({
         ...prev,
         [field.id]: ""
@@ -52,13 +61,38 @@ export default function HomePage() {
   };
 
   const addCustomField = () => {
-    if (customFieldName.trim()) {
-      setSensitiveData(prev => ({
-        ...prev,
-        [customFieldName.trim().toLowerCase().replace(/\s+/g, '_')]: ""
-      }));
-      setCustomFieldName("");
+    const normalizedFieldName = customFieldName.trim().toLowerCase().replace(/\s+/g, '_');
+
+    // Check if field already exists in predefined fields
+    const existingPredefinedField = getAllFields().find(f =>
+      f.id.toLowerCase() === normalizedFieldName ||
+      f.name.toLowerCase().replace(/\s+/g, '_') === normalizedFieldName
+    );
+
+    if (existingPredefinedField) {
+      toast({
+        title: "Field already exists",
+        description: `This field is already available as "${existingPredefinedField.name}". Please select it from the list instead.`,
+        variant: "destructive",
+      });
+      return;
     }
+
+    // Check if field name already exists in custom fields
+    if (normalizedFieldName in sensitiveData) {
+      toast({
+        title: "Duplicate field",
+        description: "This field has already been added to your selection.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSensitiveData(prev => ({
+      ...prev,
+      [normalizedFieldName]: ""
+    }));
+    setCustomFieldName("");
   };
 
   const removeField = (key: string) => {
