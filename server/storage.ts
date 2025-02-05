@@ -1,8 +1,12 @@
-import { User, InsertUser, Token, AuditLog } from "@shared/schema";
+import { users, tokens, auditLogs } from "@shared/schema";
+import { type User, type InsertUser, type Token, type AuditLog } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -14,59 +18,45 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private tokens: Map<number, Token>;
-  private auditLogs: Map<number, AuditLog>;
+export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
-  currentId: number;
 
   constructor() {
-    this.users = new Map();
-    this.tokens = new Map();
-    this.auditLogs = new Map();
-    this.currentId = 1;
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
     });
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentId++;
-    const user = { ...insertUser, id, role: "user" };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   async createToken(token: Omit<Token, "id">): Promise<Token> {
-    const id = this.currentId++;
-    const newToken = { ...token, id };
-    this.tokens.set(id, newToken);
+    const [newToken] = await db.insert(tokens).values(token).returning();
     return newToken;
   }
 
   async getToken(tokenStr: string): Promise<Token | undefined> {
-    return Array.from(this.tokens.values()).find(
-      (token) => token.token === tokenStr,
-    );
+    const [token] = await db.select().from(tokens).where(eq(tokens.token, tokenStr));
+    return token;
   }
 
   async createAuditLog(log: Omit<AuditLog, "id">): Promise<AuditLog> {
-    const id = this.currentId++;
-    const auditLog = { ...log, id };
-    this.auditLogs.set(id, auditLog);
+    const [auditLog] = await db.insert(auditLogs).values(log).returning();
     return auditLog;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
