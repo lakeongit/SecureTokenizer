@@ -26,6 +26,20 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tutorial } from "@/components/Tutorial";
+
+// Add TypeScript interfaces for API responses
+interface TokenizationResult {
+  success: boolean;
+  error?: string;
+}
+
+interface BulkResult {
+  results: Array<{
+    success: boolean;
+    error?: string;
+  }>;
+}
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
@@ -154,13 +168,34 @@ export default function HomePage() {
   const bulkTokenizeMutation = useMutation({
     mutationFn: async (data: Array<{ data: Record<string, string>, expiryHours: number }>) => {
       const res = await apiRequest("POST", "/api/bulk-tokenize", data);
-      return res.json();
+      return res.json() as Promise<BulkResult>;
     },
     onSuccess: (data) => {
+      const successful = data.results.filter((r: { success: boolean }) => r.success).length;
+      const failed = data.results.filter((r: { success: boolean }) => !r.success).length;
+
       toast({
         title: "Bulk Tokenization Complete",
-        description: `Successfully processed ${data.results.filter(r => r.success).length} items`,
+        description: (
+          <div className="space-y-2">
+            <p>Successfully processed {successful} items</p>
+            {failed > 0 && (
+              <p className="text-destructive">Failed to process {failed} items</p>
+            )}
+          </div>
+        ),
+        duration: 5000,
       });
+
+      const errors = data.results
+        .filter((r: { success: boolean; error?: string }) => !r.success)
+        .map((r: { error?: string }) => r.error)
+        .filter((error): error is string => error !== undefined);
+
+      if (errors.length > 0) {
+        console.error("Bulk tokenization errors:", errors);
+      }
+
       setBulkData([]);
     },
     onError: (error: Error) => {
@@ -307,11 +342,9 @@ export default function HomePage() {
 
       const result = await bulkTokenizeMutation.mutateAsync(items);
 
-      // Calculate success/failure statistics
       const successful = result.results.filter(r => r.success).length;
       const failed = result.results.filter(r => !r.success).length;
 
-      // Show detailed toast with statistics
       toast({
         title: "Bulk Tokenization Complete",
         description: (
@@ -325,10 +358,10 @@ export default function HomePage() {
         duration: 5000,
       });
 
-      // If any items failed, show the errors
       const errors = result.results
         .filter(r => !r.success)
-        .map(r => r.error);
+        .map(r => r.error)
+        .filter((error): error is string => error !== undefined);
 
       if (errors.length > 0) {
         console.error("Bulk tokenization errors:", errors);
@@ -387,6 +420,27 @@ export default function HomePage() {
     });
   };
 
+  const handleInputChange = (key: string, newValue: string) => {
+    setSensitiveData(prev => ({
+      ...prev,
+      [key]: newValue,
+    }));
+
+    const validation = validateField(key, newValue);
+    if (!validation.isValid && validation.message) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [key]: validation.message,
+      }));
+    } else {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[key];
+        return newErrors;
+      });
+    }
+  };
+
 
   return (
     <TooltipProvider>
@@ -423,6 +477,7 @@ export default function HomePage() {
         </header>
 
         <main className="container mx-auto px-4 py-8">
+          <Tutorial />
           <Tabs defaultValue="tokenize" className="space-y-8">
             <TabsList>
               <TabsTrigger value="tokenize">Tokenize Data</TabsTrigger>
@@ -521,26 +576,7 @@ export default function HomePage() {
                               <Label>{getAllFields().find(f => f.id === key)?.name || key}</Label>
                               <Input
                                 value={value}
-                                onChange={(e) => {
-                                  const newValue = e.target.value;
-                                  setSensitiveData(prev => ({
-                                    ...prev,
-                                    [key]: newValue,
-                                  }));
-
-                                  const validation = validateField(key, newValue);
-                                  if (!validation.isValid && validation.message) {
-                                    setValidationErrors(prev => ({
-                                      ...prev,
-                                      [key]: validation.message
-                                    }));
-                                  } else {
-                                    setValidationErrors(prev => {
-                                      const { [key]: _, ...rest } = prev;
-                                      return rest;
-                                    });
-                                  }
-                                }}
+                                onChange={(e) => handleInputChange(key, e.target.value)}
                                 placeholder={getAllFields().find(f => f.id === key)?.placeholder || "Enter value..."}
                                 className={validationErrors[key] ? "border-destructive" : ""}
                               />
