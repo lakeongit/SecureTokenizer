@@ -1,26 +1,4 @@
-# Vaultless Tokenization Platform
-
-A robust, scalable data protection platform that provides secure tokenization services with enhanced batch processing and comprehensive token management capabilities.
-
-## Features
-
-- 🔒 **Secure Tokenization**: Advanced encryption mechanisms for sensitive data protection
-- 📦 **Batch Processing**: Efficient handling of bulk data through CSV uploads
-- 🔄 **Key Rotation**: Automated key versioning and rotation logging
-- 🔍 **Audit Trail**: Comprehensive logging of all tokenization operations
-- 🚀 **Express.js Backend**: High-performance API with robust security protocols
-- 💾 **Neon PostgreSQL**: Enterprise-grade data persistence
-- 🛡️ **Authentication**: Secure user management system
-
-## Quick Start
-
-1. **Prerequisites**
-   - Node.js 18+ and npm
-   - PostgreSQL database (Neon)
-
-2. **Environment Setup**
-   ```bash
-   # Clone the repository
+# Clone the repository
    git clone [repository-url]
    cd tokenization-platform
 
@@ -52,6 +30,39 @@ The platform implements a vaultless tokenization approach, meaning sensitive dat
 - **Backend**: Express.js server handling tokenization logic and API endpoints
 - **Database**: Neon PostgreSQL for secure token storage and user management
 - **Security**: Multiple layers including authentication, rate limiting, and audit logging
+- **Cloud Scanner**: Automated detection and tokenization of sensitive data in cloud storage
+
+## Cloud Scanner
+
+The Cloud Scanner feature automatically identifies and tokenizes sensitive data stored in Google Cloud Storage buckets.
+
+### Configuration
+
+1. **Project Setup**
+   - Configure your Google Cloud project ID in the scanner settings
+   - Define bucket patterns to include/exclude specific storage buckets
+   - Set scan intervals using cron syntax (e.g., "0 */6 * * *" for every 6 hours)
+
+2. **Data Patterns**
+   - Built-in patterns for common sensitive data (PII, credit cards, SSNs)
+   - Support for custom pattern definitions using regular expressions
+   - Configurable encryption options and key rotation intervals
+
+3. **Monitoring**
+   - Real-time scanner status monitoring
+   - Detailed scan statistics and findings
+   - Comprehensive audit logging of all scanner operations
+
+### Usage
+
+1. Navigate to the Cloud Scanner page in the application
+2. Configure the scanner settings:
+   - Enter your Google Cloud Project ID
+   - Define bucket patterns to scan
+   - Set the desired scan interval
+3. Start the scanner using the "Start Scanner" button
+4. Monitor scan progress and findings in the dashboard
+5. Review detailed scan results in the audit logs
 
 ## API Integration
 
@@ -71,37 +82,3 @@ const response = await fetch('/api/tokenize', {
     type: 'string'
   })
 });
-```
-
-## Security Considerations
-
-- All sensitive data is encrypted using industry-standard algorithms
-- Keys are automatically rotated based on configurable schedules
-- Comprehensive audit logging for security compliance
-- Rate limiting to prevent abuse
-
-## Troubleshooting
-
-Common issues and solutions:
-
-1. **Connection Issues**
-   - Verify database connection string in environment variables
-   - Check if the database is accessible from your network
-
-2. **Authentication Errors**
-   - Ensure API keys are properly configured
-   - Verify user permissions in the system
-
-3. **Performance Issues**
-   - Consider batch processing for large datasets
-   - Monitor database connection pool settings
-
-For more detailed troubleshooting, see [Troubleshooting Guide](./docs/troubleshooting.md)
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](./docs/contributing.md) for details.
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details
