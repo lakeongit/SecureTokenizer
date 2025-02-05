@@ -22,6 +22,7 @@ import {
   Loader2
 } from "lucide-react";
 import { Link } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { fieldCategories, getAllFields, validateField } from "@/lib/field-definitions";
 import {
@@ -182,6 +183,7 @@ export default function HomePage() {
       setSensitiveData({});
       setExpiryHours("24");
       setValidationErrors({});
+      queryClient.invalidateQueries({ queryKey: ['/api/tokens'] });
     },
     onError: (error: Error) => {
       toast({
@@ -206,7 +208,7 @@ export default function HomePage() {
         title: "Data Retrieved",
         description: "Token successfully detokenized",
       });
-      setDetokenizeQuery(""); // Clear the input after successful detokenization
+      setDetokenizeQuery(""); 
     },
     onError: (error: Error) => {
       toast({
@@ -214,7 +216,7 @@ export default function HomePage() {
         description: error.message,
         variant: "destructive",
       });
-      setDetokenizeQuery(""); // Clear the input on error
+      setDetokenizeQuery(""); 
     },
   });
 
@@ -250,6 +252,7 @@ export default function HomePage() {
       }
 
       setBulkData([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/tokens'] });
     },
     onError: (error: Error) => {
       toast({
@@ -271,6 +274,7 @@ export default function HomePage() {
       });
       setSelectedToken("");
       setExtensionHours("24");
+      queryClient.invalidateQueries({ queryKey: ['/api/tokens'] });
     },
     onError: (error: Error) => {
       toast({
@@ -291,6 +295,7 @@ export default function HomePage() {
         description: "Token has been revoked successfully",
       });
       setSelectedToken("");
+      queryClient.invalidateQueries({ queryKey: ['/api/tokens'] });
     },
     onError: (error: Error) => {
       toast({
@@ -512,14 +517,13 @@ export default function HomePage() {
 
     const validation = validateField(key, newValue);
     if (!validation.isValid && validation.message) {
-      // Fix the type issue by ensuring we're only setting string values
       setValidationErrors(prev => ({
         ...prev,
-        [key]: validation.message || '',  // Ensure we always set a string
+        [key]: validation.message || '',  
       }));
     } else {
       setValidationErrors(prev => {
-        const { [key]: _, ...rest } = prev;  // Remove the key while maintaining type safety
+        const { [key]: _, ...rest } = prev;  
         return rest;
       });
     }
