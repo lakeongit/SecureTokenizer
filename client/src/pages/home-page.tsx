@@ -206,9 +206,20 @@ export default function HomePage() {
     onSuccess: (data) => {
       toast({
         title: "Data Retrieved",
-        description: "Token successfully detokenized",
+        description: (
+          <div className="space-y-2 max-h-[300px] overflow-auto">
+            <p className="font-medium">Detokenized Data:</p>
+            {Object.entries(data.data).map(([key, value]) => (
+              <div key={key} className="flex gap-2">
+                <span className="font-medium">{key}:</span>
+                <span>{String(value)}</span>
+              </div>
+            ))}
+          </div>
+        ),
+        duration: 5000,
       });
-      setDetokenizeQuery(""); 
+      setDetokenizeQuery("");
     },
     onError: (error: Error) => {
       toast({
@@ -216,7 +227,7 @@ export default function HomePage() {
         description: error.message,
         variant: "destructive",
       });
-      setDetokenizeQuery(""); 
+      setDetokenizeQuery("");
     },
   });
 
@@ -972,10 +983,10 @@ export default function HomePage() {
                       <CardContent>
                         <ScrollArea className="h-[200px]">
                           <div className="space-y-2">
-                            {Object.entries(detokenizeMutation.data).map(([key, value]) => (
+                            {Object.entries(detokenizeMutation.data.data).map(([key, value]) => (
                               <div key={key} className="flex justify-between items-center">
                                 <span className="font-medium">{key}:</span>
-                                <span>{value as string}</span>
+                                <span>{String(value)}</span>
                               </div>
                             ))}
                           </div>
