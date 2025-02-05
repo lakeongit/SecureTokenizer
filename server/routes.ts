@@ -4,6 +4,7 @@ import { setupAuth } from "./auth";
 import { tokenizationService } from "./tokenization";
 import { tokenizationSchema } from "@shared/schema";
 import rateLimit from "express-rate-limit";
+import { storage } from "./storage";
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -76,6 +77,24 @@ export function registerRoutes(app: Express): Server {
 
       const data = await tokenizationService.detokenize(token, req.user!.id);
       res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Add audit logs endpoint
+  app.get("/api/audit-logs", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      // In a production environment, we would want to:
+      // 1. Add pagination
+      // 2. Add filtering options
+      // 3. Add date range selection
+      // 4. Add role-based access control
+      // For now, we'll keep it simple
+      const logs = await storage.getAuditLogs(req.user!.id);
+      res.json(logs);
     } catch (err) {
       next(err);
     }
