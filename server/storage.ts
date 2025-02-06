@@ -19,6 +19,8 @@ export interface IStorage {
   createAuditLog(log: Omit<AuditLog, "id">): Promise<AuditLog>;
   getAuditLogs(userId: number): Promise<AuditLog[]>;
   getExpiringTokens(userId: number, daysThreshold: number): Promise<Token[]>;
+  getAllTokens(userId: number): Promise<Token[]>;
+  getTokenAccessLogs(token: string): Promise<AuditLog[]>;
   sessionStore: session.Store;
 }
 
@@ -100,6 +102,27 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(tokens.expires);
+  }
+
+  async getAllTokens(userId: number): Promise<Token[]> {
+    return await db
+      .select()
+      .from(tokens)
+      .where(eq(tokens.userId, userId))
+      .orderBy(desc(tokens.created));
+  }
+
+  async getTokenAccessLogs(tokenStr: string): Promise<AuditLog[]> {
+    return await db
+      .select()
+      .from(auditLogs)
+      .where(
+        and(
+          eq(auditLogs.action, 'detokenize'),
+          eq(auditLogs.details, JSON.stringify({ token: tokenStr }))
+        )
+      )
+      .orderBy(desc(auditLogs.timestamp));
   }
 }
 

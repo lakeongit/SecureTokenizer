@@ -1,5 +1,6 @@
 import { storage } from '../storage';
 import { cloudScanner } from './cloud-scanner';
+import type { Token, AuditLog } from '@shared/schema';
 
 interface TokenizationMetrics {
   totalTokens: number;
@@ -35,7 +36,7 @@ export class ReportingService {
   async getTokenizationMetrics(userId: number, timeRange?: { start: Date; end: Date }): Promise<TokenizationMetrics> {
     const auditLogs = await storage.getAuditLogs(userId);
     const now = new Date();
-    
+
     // Filter logs by time range if provided
     const filteredLogs = timeRange 
       ? auditLogs.filter(log => log.timestamp >= timeRange.start && log.timestamp <= timeRange.end)
@@ -56,7 +57,7 @@ export class ReportingService {
       token.expires.getTime() - token.created.getTime()
     );
     const averageLifespan = tokenLifespans.length > 0
-      ? tokenLifespans.reduce((a, b) => a + b, 0) / tokenLifespans.length
+      ? tokenLifespans.reduce((sum, val) => sum + val, 0) / tokenLifespans.length
       : 0;
 
     return {
@@ -71,7 +72,7 @@ export class ReportingService {
   async getScannerMetrics(timeRange?: { start: Date; end: Date }): Promise<ScannerMetrics> {
     const scannerStatus = await cloudScanner.getStatus();
     const auditLogs = await storage.getAuditLogs(999999); // System user ID
-    
+
     const filteredLogs = timeRange
       ? auditLogs.filter(log => log.timestamp >= timeRange.start && log.timestamp <= timeRange.end)
       : auditLogs;
@@ -85,12 +86,12 @@ export class ReportingService {
     );
 
     // Calculate detection types
-    const detectionsByType = findingsLogs.reduce((acc, log) => {
+    const detectionsByType = findingsLogs.reduce((acc: Record<string, number>, log) => {
       const details = JSON.parse(log.details);
       const infoType = details.infoType || 'unknown';
       acc[infoType] = (acc[infoType] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
     // Calculate average scan duration
     const scanDurations = scanLogs.map(log => {
@@ -99,7 +100,7 @@ export class ReportingService {
     });
 
     const averageDuration = scanDurations.length > 0
-      ? scanDurations.reduce((a, b) => a + b, 0) / scanDurations.length
+      ? scanDurations.reduce((sum, val) => sum + val, 0) / scanDurations.length
       : 0;
 
     return {
@@ -114,12 +115,12 @@ export class ReportingService {
   async getComplianceMetrics(userId: number): Promise<ComplianceMetrics> {
     const tokens = await storage.getAllTokens(userId);
     const now = new Date();
-    
+
     // Calculate token expiry compliance
     const expiredUnrevokedTokens = tokens.filter(token => 
       token.expires <= now && !token.revoked
     ).length;
-    
+
     const tokenExpiryCompliance = tokens.length > 0
       ? (1 - (expiredUnrevokedTokens / tokens.length)) * 100
       : 100;
@@ -129,7 +130,7 @@ export class ReportingService {
     const oldTokens = tokens.filter(token => 
       token.created <= retentionThreshold && !token.revoked
     ).length;
-    
+
     const dataRetentionCompliance = tokens.length > 0
       ? (1 - (oldTokens / tokens.length)) * 100
       : 100;
@@ -139,13 +140,15 @@ export class ReportingService {
     const scanningCoverage = scannerStatus.totalScans > 0 ? 100 : 0;
 
     // Calculate unused token percentage
-    const unusedTokens = tokens.filter(token => {
-      const logs = storage.getTokenAccessLogs(token.token);
-      return logs.length === 0;
-    }).length;
+    const unusedTokensCount = await Promise.all(
+      tokens.map(async token => {
+        const logs = await storage.getTokenAccessLogs(token.token);
+        return logs.length === 0 ? 1 : 0;
+      })
+    ).then(results => results.reduce((sum, val) => sum + val, 0));
 
     const unusedTokenPercentage = tokens.length > 0
-      ? (unusedTokens / tokens.length) * 100
+      ? (unusedTokensCount / tokens.length) * 100
       : 0;
 
     return {
@@ -158,7 +161,7 @@ export class ReportingService {
 
   async getPerformanceMetrics(userId: number, timeRange?: { start: Date; end: Date }): Promise<PerformanceMetrics> {
     const auditLogs = await storage.getAuditLogs(userId);
-    
+
     const filteredLogs = timeRange
       ? auditLogs.filter(log => log.timestamp >= timeRange.start && log.timestamp <= timeRange.end)
       : auditLogs;
@@ -172,7 +175,7 @@ export class ReportingService {
       });
 
     const averageTokenizationTime = tokenizationTimes.length > 0
-      ? tokenizationTimes.reduce((a, b) => a + b, 0) / tokenizationTimes.length
+      ? tokenizationTimes.reduce((sum, val) => sum + val, 0) / tokenizationTimes.length
       : 0;
 
     // Calculate detokenization times
@@ -184,7 +187,7 @@ export class ReportingService {
       });
 
     const averageDetokenizationTime = detokenizationTimes.length > 0
-      ? detokenizationTimes.reduce((a, b) => a + b, 0) / detokenizationTimes.length
+      ? detokenizationTimes.reduce((sum, val) => sum + val, 0) / detokenizationTimes.length
       : 0;
 
     // Calculate scanner latency
@@ -197,7 +200,7 @@ export class ReportingService {
       });
 
     const scannerLatency = scanTimes.length > 0
-      ? scanTimes.reduce((a, b) => a + b, 0) / scanTimes.length
+      ? scanTimes.reduce((sum, val) => sum + val, 0) / scanTimes.length
       : 0;
 
     // Calculate API response times
