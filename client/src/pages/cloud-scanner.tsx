@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Cloud, Settings, AlertCircle } from "lucide-react";
+import { Loader2, Cloud, Settings, AlertCircle, RefreshCw } from "lucide-react";
 import { MainNav } from "@/components/MainNav";
 import {
   Table,
@@ -41,6 +41,11 @@ export default function CloudScannerPage() {
   const { toast } = useToast();
   const [editingConfig, setEditingConfig] = useState(false);
   const [configForm, setConfigForm] = useState<Partial<ScannerConfig>>({});
+
+  const handleRestartTutorial = () => {
+    localStorage.removeItem('hasSeenCloudScannerTutorial');
+    window.location.reload();
+  };
 
   const { data: status, isLoading: isStatusLoading } = useQuery<ScannerStatus>({
     queryKey: ['/api/scanner/status'],
@@ -152,19 +157,30 @@ export default function CloudScannerPage() {
                   Monitor and manage Google Cloud storage scanning operations
                 </p>
               </div>
-              <Button
-                variant={scannerStatus.isRunning ? "destructive" : "default"}
-                onClick={() => scannerStatus.isRunning
-                  ? stopScannerMutation.mutate()
-                  : startScannerMutation.mutate()
-                }
-                disabled={startScannerMutation.isPending || stopScannerMutation.isPending}
-              >
-                {(startScannerMutation.isPending || stopScannerMutation.isPending) && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {scannerStatus.isRunning ? "Stop Scanner" : "Start Scanner"}
-              </Button>
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRestartTutorial}
+                  className="gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Restart Tutorial
+                </Button>
+                <Button
+                  variant={scannerStatus.isRunning ? "destructive" : "default"}
+                  onClick={() => scannerStatus.isRunning
+                    ? stopScannerMutation.mutate()
+                    : startScannerMutation.mutate()
+                  }
+                  disabled={startScannerMutation.isPending || stopScannerMutation.isPending}
+                >
+                  {(startScannerMutation.isPending || stopScannerMutation.isPending) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {scannerStatus.isRunning ? "Stop Scanner" : "Start Scanner"}
+                </Button>
+              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
