@@ -49,6 +49,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Copy, Check } from "lucide-react";
 
 
 // Add TypeScript interfaces for API responses
@@ -210,15 +211,46 @@ export default function HomePage() {
         description: (
           <div className="space-y-2 max-h-[300px] overflow-auto">
             <p className="font-medium">Detokenized Data:</p>
-            {Object.entries(data.data).map(([key, value]) => (
-              <div key={key} className="flex gap-2">
-                <span className="font-medium">{key}:</span>
-                <span>{String(value)}</span>
-              </div>
-            ))}
+            {Object.entries(data.data).map(([key, value]) => {
+              const copyToClipboard = async () => {
+                try {
+                  await navigator.clipboard.writeText(String(value));
+                  // Show success toast
+                  toast({
+                    title: "Copied!",
+                    description: `${key} value has been copied to clipboard`,
+                    duration: 2000,
+                  });
+                } catch (err) {
+                  toast({
+                    title: "Copy failed",
+                    description: "Failed to copy to clipboard",
+                    variant: "destructive",
+                  });
+                }
+              };
+
+              return (
+                <div key={key} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
+                  <div className="flex gap-2">
+                    <span className="font-medium">{key}:</span>
+                    <span>{String(value)}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={copyToClipboard}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Copy className="h-4 w-4" />
+                    <span className="sr-only">Copy {key} value</span>
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         ),
-        duration: 5000,
+        duration: 10000,
       });
       setDetokenizeQuery("");
     },
@@ -963,7 +995,8 @@ export default function HomePage() {
                       </Label>
                       <Input
                         id="detokenize-query"
-                        value={detokenizeQuery}                        onChange={(e) => setDetokenizeQuery(e.target.value)}
+                        value={detokenizeQuery}
+                        onChange={(e) => setDetokenizeQuery(e.target.value)}
                         placeholder="Enter token to retrieve data..."
                         className="mt-1.5"
                       />
