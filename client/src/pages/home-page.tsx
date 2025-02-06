@@ -19,7 +19,8 @@ import {
   FileText,
   Settings,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Cloud
 } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -650,6 +651,12 @@ export default function HomePage() {
                   <Database className="h-4 w-4" />
                   <span>{user?.username}</span>
                 </div>
+                <Link href="/cloud-scanner">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Cloud className="h-4 w-4" />
+                    Cloud Scanner
+                  </Button>
+                </Link>
                 <Link href="/audit-logs">
                   <Button variant="outline" size="sm" className="gap-2">
                     <Clock className="h-4 w-4" />
@@ -956,8 +963,7 @@ export default function HomePage() {
                       </Label>
                       <Input
                         id="detokenize-query"
-                        value={detokenizeQuery}
-                        onChange={(e) => setDetokenizeQuery(e.target.value)}
+                        value={detokenizeQuery}                        onChange={(e) => setDetokenizeQuery(e.target.value)}
                         placeholder="Enter token to retrieve data..."
                         className="mt-1.5"
                       />
