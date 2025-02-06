@@ -1,10 +1,18 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function CloudScannerTutorial() {
   const [step, setStep] = useState(1);
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Check localStorage on component mount
+  useEffect(() => {
+    const hasSeenTutorial = localStorage.getItem('hasSeenCloudScannerTutorial');
+    if (!hasSeenTutorial) {
+      setIsOpen(true);
+    }
+  }, []);
 
   const totalSteps = 4;
 
@@ -31,11 +39,16 @@ export function CloudScannerTutorial() {
     if (step < totalSteps) {
       setStep(step + 1);
     } else {
-      setIsOpen(false);
+      completeTutorial();
     }
   };
 
   const handleSkip = () => {
+    completeTutorial();
+  };
+
+  const completeTutorial = () => {
+    localStorage.setItem('hasSeenCloudScannerTutorial', 'true');
     setIsOpen(false);
   };
 
