@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { Shield, ScrollText, CloudIcon, Database, Loader2 } from "lucide-react";
+import { Shield, ScrollText, CloudIcon, Database, Loader2, BarChart2 } from "lucide-react";
 
 export function MainNav() {
   const [location] = useLocation();
@@ -25,6 +25,17 @@ export function MainNav() {
               <Database className="h-4 w-4" />
               <span>{user?.username}</span>
             </div>
+
+            <Link href="/reporting">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={`gap-2 ${location === "/reporting" ? "bg-primary text-primary-foreground" : ""}`}
+              >
+                <BarChart2 className="h-4 w-4" />
+                Reports
+              </Button>
+            </Link>
 
             <Link href="/cloud-scanner">
               <Button 
@@ -53,11 +64,15 @@ export function MainNav() {
               size="sm"
               onClick={() => logoutMutation.mutate()}
               disabled={logoutMutation.isPending}
+              className="gap-2"
             >
               {logoutMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Logout"
+                <>
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  Logout
+                </>
               )}
             </Button>
           </div>
