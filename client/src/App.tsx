@@ -9,6 +9,7 @@ import AuthPage from "@/pages/auth-page";
 import HomePage from "@/pages/home-page";
 import AuditLogsPage from "@/pages/audit-logs";
 import CloudScannerPage from "@/pages/cloud-scanner";
+import ReportingDashboard from "@/pages/reporting-dashboard";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedRoute path="/audit-logs" component={AuditLogsPage} />
       <ProtectedRoute path="/cloud-scanner" component={CloudScannerPage} />
+      <ProtectedRoute path="/reporting" component={ReportingDashboard} />
       <WouterRoute path="/auth" component={AuthPage} />
       <WouterRoute component={NotFound} />
     </Switch>

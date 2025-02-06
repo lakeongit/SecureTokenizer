@@ -6,6 +6,7 @@ import { tokenizationSchema } from "@shared/schema";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { cloudScanner } from './services/cloud-scanner';
+import { reportingService } from './services/reporting';
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -272,6 +273,66 @@ export function registerRoutes(app: Express): Server {
           failed: results.filter(r => !r.success).length
         }
       });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Reporting endpoints
+  app.get("/api/reports/tokenization", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const timeRange = req.query.timeRange ? {
+        start: new Date(req.query.timeRange.toString().split(',')[0]),
+        end: new Date(req.query.timeRange.toString().split(',')[1])
+      } : undefined;
+
+      const metrics = await reportingService.getTokenizationMetrics(req.user!.id, timeRange);
+      res.json(metrics);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/reports/scanner", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const timeRange = req.query.timeRange ? {
+        start: new Date(req.query.timeRange.toString().split(',')[0]),
+        end: new Date(req.query.timeRange.toString().split(',')[1])
+      } : undefined;
+
+      const metrics = await reportingService.getScannerMetrics(timeRange);
+      res.json(metrics);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/reports/compliance", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const metrics = await reportingService.getComplianceMetrics(req.user!.id);
+      res.json(metrics);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/api/reports/performance", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const timeRange = req.query.timeRange ? {
+        start: new Date(req.query.timeRange.toString().split(',')[0]),
+        end: new Date(req.query.timeRange.toString().split(',')[1])
+      } : undefined;
+
+      const metrics = await reportingService.getPerformanceMetrics(req.user!.id, timeRange);
+      res.json(metrics);
     } catch (err) {
       next(err);
     }
