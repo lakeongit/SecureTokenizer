@@ -1,5 +1,4 @@
-# Clone the repository
-   git clone [repository-url]
+git clone [repository-url]
    cd tokenization-platform
 
    # Install dependencies
@@ -10,12 +9,12 @@
    # Edit .env with your credentials
    ```
 
-3. **Database Setup**
+2. **Database Setup**
    ```bash
    npm run db:push
    ```
 
-4. **Start the Application**
+3. **Start the Application**
    ```bash
    npm run dev
    ```
@@ -31,6 +30,7 @@ The platform implements a vaultless tokenization approach, meaning sensitive dat
 - **Database**: Neon PostgreSQL for secure token storage and user management
 - **Security**: Multiple layers including authentication, rate limiting, and audit logging
 - **Cloud Scanner**: Automated detection and tokenization of sensitive data in cloud storage
+- **Reporting**: Advanced analytics and compliance monitoring
 
 ## Cloud Scanner
 
@@ -52,17 +52,44 @@ The Cloud Scanner feature automatically identifies and tokenizes sensitive data 
    - Real-time scanner status monitoring
    - Detailed scan statistics and findings
    - Comprehensive audit logging of all scanner operations
+   - Interactive tutorial system with restart capability
 
 ### Usage
 
 1. Navigate to the Cloud Scanner page in the application
-2. Configure the scanner settings:
+2. Complete the interactive tutorial (or restart it using the "Restart Tutorial" button)
+3. Configure the scanner settings:
    - Enter your Google Cloud Project ID
    - Define bucket patterns to scan
    - Set the desired scan interval
-3. Start the scanner using the "Start Scanner" button
-4. Monitor scan progress and findings in the dashboard
-5. Review detailed scan results in the audit logs
+4. Start the scanner using the "Start Scanner" button
+5. Monitor scan progress and findings in the dashboard
+6. Review detailed scan results in the audit logs
+
+## Reporting Dashboard
+
+The reporting dashboard provides comprehensive insights into your tokenization operations:
+
+1. **Key Metrics**
+   - Total tokens created
+   - Active tokens
+   - Token utilization rates
+   - Compliance scores
+
+2. **Performance Analytics**
+   - Tokenization response times
+   - System performance metrics
+   - Resource utilization
+
+3. **Compliance Tracking**
+   - Token expiry compliance
+   - Security policy adherence
+   - Audit trail analysis
+
+4. **Custom Reports**
+   - Date range filtering
+   - Export capabilities
+   - Detailed data breakdowns
 
 ## API Integration
 
